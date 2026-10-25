@@ -1,41 +1,41 @@
-:root {
-  --bg: #f6f7f9;
+:root,
+:root[data-theme="light"] {
+  /* Light: white background, blue buttons, black text */
+  --bg: #ffffff;
   --surface: #ffffff;
-  --text: #1b1f24;
-  --muted: #5d6673;
-  --border: #dde1e6;
-  --accent: #2f5bd3;
+  --text: #000000;
+  --muted: #4a5260;
+  --border: #d6dbe3;
+  --accent: #1d5fd6;
   --accent-text: #ffffff;
-  --code-bg: #f1f3f6;
-  --crit: #b3261e;
-  --high: #d05a12;
-  --med: #b38600;
-  --low: #3d7a3d;
-  --info: #5d6673;
+  --code-bg: #f3f5f8;
+  --tile-bg: #f7f9fc;
+  --crit: #c0261d;
+  --high: #c8550c;
+  --med: #9a7300;
+  --low: #2f7d32;
+  --info: #4a5260;
   --sev-text: #ffffff;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #121418;
-    --surface: #1b1e24;
-    --text: #e6e8eb;
-    --muted: #9aa3ae;
-    --border: #2d323a;
-    --accent: #7c9cff;
-    --accent-text: #0d1020;
-    --code-bg: #14171c;
-    --crit: #ff6b61;
-    --high: #ff9a55;
-    --med: #e2bd3c;
-    --low: #7fc47f;
-    --info: #9aa3ae;
-    --sev-text: #121418;
-  }
+  color-scheme: light;
 }
 :root[data-theme="dark"] {
-  --bg: #121418; --surface: #1b1e24; --text: #e6e8eb; --muted: #9aa3ae; --border: #2d323a;
-  --accent: #7c9cff; --accent-text: #0d1020; --code-bg: #14171c; --crit: #ff6b61; --high: #ff9a55;
-  --med: #e2bd3c; --low: #7fc47f; --info: #9aa3ae; --sev-text: #121418;
+  /* Dark: black background, green buttons, white text */
+  --bg: #000000;
+  --surface: #0b0b0b;
+  --text: #ffffff;
+  --muted: #a3a9b2;
+  --border: #2a2d31;
+  --accent: #22c55e;
+  --accent-text: #000000;
+  --code-bg: #111315;
+  --tile-bg: #121416;
+  --crit: #ff6b61;
+  --high: #ff9a55;
+  --med: #e2bd3c;
+  --low: #5fd16f;
+  --info: #a3a9b2;
+  --sev-text: #000000;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -163,3 +163,62 @@ pre.revealed { max-height: 360px; overflow: auto; white-space: pre-wrap; overflo
 .cov.warn { color: var(--crit); font-weight: 600; }
 .rewrite-out { margin-top: 12px; }
 code { font-family: ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; }
+
+/* ---- batch layout ---- */
+.theme-btn { margin-left: 8px; }
+h2.step { font-size: 17px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+.step-n { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--accent); color: var(--accent-text); font-size: 13px; }
+textarea { flex: 1 1 320px; min-width: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); color: var(--text); font: inherit; resize: vertical; }
+.hint.error { color: var(--crit); }
+.hint.error:empty { display: none; }
+.tiles-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 6px 0 10px; }
+button.link { background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; font: inherit; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 12px; }
+.tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0;
+  border: none; background: none; color: var(--text); cursor: pointer; font: inherit; text-align: center; }
+.tile-box { width: 100%; aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 8px; border: 2px solid var(--border); border-radius: 12px; background: var(--tile-bg); }
+.tile .icon svg { width: 40px; height: 40px; display: block; }
+.tile.selected .tile-box { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+.tile.selected .icon { color: var(--accent); }
+.tile.dim { opacity: .5; cursor: not-allowed; }
+.tile-name { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; line-height: 1.25; }
+.tile-status { font-size: 11px; color: var(--muted); padding: 0 6px; }
+.tile-status.bad { color: var(--crit); font-weight: 700; }
+.tile-x, .tile-retry { position: absolute; top: 4px; width: 20px; height: 20px; border-radius: 50%; display: grid;
+  place-items: center; font-size: 14px; line-height: 1; background: var(--surface); border: 1px solid var(--border); color: var(--muted); }
+.tile-x { right: 4px; }
+.tile-retry { left: 4px; }
+.tile-x:hover, .tile-retry:hover { color: var(--text); border-color: var(--text); }
+.run-row { margin-top: 14px; justify-content: space-between; }
+button.run { min-width: 120px; font-weight: 700; }
+
+/* ---- runs ---- */
+details.batch { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; }
+details.batch > summary { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 12px; cursor: pointer; }
+.task-list { border-top: 1px solid var(--border); }
+.task { display: grid; grid-template-columns: minmax(140px, 1.4fr) auto minmax(180px, 2fr) 70px auto auto; gap: 8px 12px;
+  align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.task:last-child { border-bottom: none; }
+.task.running { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.task-name { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.op-chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); white-space: nowrap; }
+.stages { display: flex; flex-wrap: wrap; gap: 4px; }
+.stage { font-size: 11px; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border); color: var(--muted); }
+.stage.ok { color: var(--low); border-color: var(--low); }
+.stage.run { color: var(--accent-text); background: var(--accent); border-color: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+.stage.bad { color: var(--crit); border-color: var(--crit); }
+@keyframes pulse { 50% { opacity: .6; } }
+.rec-badge { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border); white-space: nowrap; }
+.rec-badge.SAFE { color: var(--low); border-color: var(--low); }
+.rec-badge.CAUTION { color: var(--med); border-color: var(--med); }
+.rec-badge.DO_NOT_INSTALL { color: var(--crit); border-color: var(--crit); }
+.task-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.task-actions button { padding: 4px 10px; font-size: 12px; }
+.task-error { grid-column: 1 / -1; color: var(--crit); font-size: 12px; overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .task { grid-template-columns: 1fr auto; }
+  .stages { grid-column: 1 / -1; }
+}

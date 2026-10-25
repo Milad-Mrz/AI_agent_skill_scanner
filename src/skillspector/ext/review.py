@@ -33,7 +33,15 @@ from skillspector.input_handler import InputHandler
 from skillspector.models import Finding
 from skillspector.nodes.report import risk_severity_and_recommendation
 
-SCAN_TIMEOUT_SECONDS = 900
+SCAN_TIMEOUT_SECONDS = 1800
+PROGRESS_PREFIX = "@@PROGRESS "
+
+
+def progress(stage: str, **detail: object) -> None:
+    """Print a machine-readable progress line on stdout (read by the web UI)."""
+    print(PROGRESS_PREFIX + json.dumps({"stage": stage, **detail}), flush=True)
+
+
 _RANK = {"SAFE": 0, "CAUTION": 1, "DO_NOT_INSTALL": 2}
 
 
@@ -168,11 +176,24 @@ def add_dynamic(result: dict, sandbox: dict) -> dict:
     return result
 
 
-def review(source: str, *, use_llm: bool, strict: bool) -> dict:
+def review(
+    source: str,
+    *,
+    use_llm: bool,
+    strict: bool,
+    upstream_llm: bool | None = None,
+    run_judge: bool = True,
+    run_explain: bool = True,
+) -> dict:
+    """Run the pipeline. ``use_llm`` False turns every LLM stage off."""
+    upstream_llm = use_llm if upstream_llm is None else (upstream_llm and use_llm)
     handler = InputHandler(allow_git_credentials=False)
     try:
+        progress("fetch")
         path, source_type = handler.resolve(source)
-        report, warnings = _upstream_scan(path, use_llm, strict)
+        progress("upstream-scan")
+        report, warnings = _upstream_scan(path, upstream_llm, strict)
+        progress("reveal")
         revealed = reveal_skill(path)
         raw_text = {}
         for item in revealed:
@@ -182,8 +203,13 @@ def review(source: str, *, use_llm: bool, strict: bool) -> dict:
                 pass
         judge_output = explanation = None
         if use_llm:
-            judge_output = judge(revealed, raw_text).to_dict()
-            explanation = explain(revealed).to_dict()
+            if run_judge:
+                progress("judge")
+                judge_output = judge(revealed, raw_text).to_dict()
+            if run_explain:
+                progress("explain")
+                explanation = explain(revealed).to_dict()
+        progress("verdict")
         verdict = combined_verdict(report, judge_output, explanation, strict)
         return {
             "source": source,
@@ -217,8 +243,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--no-llm", action="store_true")
     parser.add_argument("--no-strict", action="store_true")
+    parser.add_argument("--no-judge", action="store_true", help="skip the bundle judge")
+    parser.add_argument("--no-explain", action="store_true", help="skip explain + coverage")
+    parser.add_argument(
+        "--static-upstream", action="store_true", help="run the upstream scan without its LLM stage"
+    )
     args = parser.parse_args(argv)
-    result = review(args.source, use_llm=not args.no_llm, strict=not args.no_strict)
+    result = review(
+        args.source,
+        use_llm=not args.no_llm,
+        strict=not args.no_strict,
+        upstream_llm=not args.static_upstream,
+        run_judge=not args.no_judge,
+        run_explain=not args.no_explain,
+    )
     args.out.write_text(json.dumps(result), encoding="utf-8")
     return 0
 

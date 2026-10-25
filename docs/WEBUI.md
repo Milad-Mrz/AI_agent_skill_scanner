@@ -7,6 +7,21 @@ uv pip install -e ".[ui]"            # or: pip install -e ".[ui]"
 python -m skillspector.ext.webui     # http://127.0.0.1:8765  (localhost only)
 ```
 
+## Batch flow (Scan tab)
+1. **Repositories:** paste one or more GitHub links or local paths. Each one is fetched once (upstream hardened clone, no credentials) and split into its skills. A tile shows the GitHub logo, the name and the skill count. Click a tile to select it.
+2. **Operations:**
+   - **SkillSpector-MM:** static rules plus reveal, free.
+   - **Model reviews:** one tile per model (upstream LLM stage plus the bundle judge).
+   - **Explain:** plain-English instructions plus a coverage check. It's slow, so it's a separate tile.
+   - **Sandbox:** a real agent with fake secrets.
+   - **Pin:** one per repository.
+3. **Run:** every (skill × operation) pair becomes a task.
+   - **Progress:** each task shows its stages live (fetch, upstream-scan, reveal, judge, explain, verdict).
+   - **Queue:** LLM tasks run one at a time (`SKILLSPECTOR_UI_LLM_WORKERS`) to avoid provider throttling. Static tasks run three at a time.
+   - **Adding more:** add repositories and click Run again while tasks run; new tasks join the waiting list. Queued or running tasks can be cancelled.
+   - **Time limit:** 2400 s per task (`SKILLSPECTOR_UI_TASK_TIMEOUT`). A timeout now reports the stage it stopped in.
+4. **Themes:** the header button switches between light (white background, blue buttons, black text, the default) and dark (black background, green buttons, white text). The choice is remembered in the browser.
+
 ## Features
 - **Scan:** a Git/HTTPS URL, a local path, or an uploaded `.zip` or `.md` file.
 - **Model:** grouped by type. Profiles are defined in `src/skillspector/ext/llm_profiles.py`.

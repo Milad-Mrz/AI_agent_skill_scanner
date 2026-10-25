@@ -31,113 +31,231 @@ function showTab(name) {
   document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
   document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("hidden", p.id !== `tab-${name}`));
   if (name === "history") loadHistory();
+  if (name === "batch") loadJobs();
   if (name === "pins") loadPins();
 }
 
-// ---- profiles ----
-let profiles = [];
-async function loadProfiles() {
-  profiles = await api("/api/profiles");
-  const select = $("#profile");
-  select.replaceChildren();
-  const groups = [
-    ["No LLM", (p) => p.id === "static"],
-    ["Hosted frontier models", (p) => ["anthropic", "openai"].includes(p.provider)],
-    ["Open-weight models (hosted)", (p) => p.provider === "nv_build"],
-    ["Open-weight models (local)", (p) => p.provider === "ollama"],
-  ];
-  for (const [title, match] of groups) {
-    const group = el("optgroup", { label: title });
-    for (const p of profiles.filter(match)) {
-      const label = p.ready ? p.label : `${p.label} (needs ${p.missing})`;
-      const opt = el("option", { value: p.id, text: label });
-      if (!p.ready) opt.disabled = true;
-      group.append(opt);
+// ---- theme ----
+const THEME_KEY = "skill-scanner-theme";
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  $("#theme-toggle").textContent = theme === "dark" ? "☀ Light" : "☾ Dark";
+  try { localStorage.setItem(THEME_KEY, theme); } catch (_) { /* storage may be blocked */ }
+}
+$("#theme-toggle").addEventListener("click", () =>
+  applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+(() => {
+  let saved = null;
+  try { saved = localStorage.getItem(THEME_KEY); } catch (_) { /* ignore */ }
+  applyTheme(saved === "dark" || saved === "light" ? saved : "light");
+})();
+
+// ---- icons (inline SVG, no external requests) ----
+const ICONS = {
+  github: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>',
+  folder: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M3 6h7l2 2h9v11H3z"/></svg>',
+  shield: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path fill="none" stroke="currentColor" stroke-width="2" d="M8.5 12l2.5 2.5 4.5-5"/></svg>',
+  spark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/></svg>',
+  cloud: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/></svg>',
+  chip: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><path stroke="currentColor" stroke-width="2" d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg>',
+  list: '<svg viewBox="0 0 24 24" aria-hidden="true"><path stroke="currentColor" stroke-width="2" d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.5" fill="currentColor"/><circle cx="4.5" cy="12" r="1.5" fill="currentColor"/><circle cx="4.5" cy="18" r="1.5" fill="currentColor"/></svg>',
+  box: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 2l9 5v10l-9 5-9-5V7z"/><path fill="none" stroke="currentColor" stroke-width="2" d="M3 7l9 5 9-5M12 12v10"/></svg>',
+  pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M9 3h6l-1 6 4 3v2H6v-2l4-3zM12 14v7"/></svg>',
+};
+function icon(name) {
+  const span = el("span", { class: "icon" });
+  span.innerHTML = ICONS[name] || ICONS.shield; // static strings defined above, never skill data
+  return span;
+}
+
+// ---- repositories ----
+let repos = [];
+const selectedRepos = new Set();
+async function loadRepos() {
+  repos = await api("/api/repos");
+  for (const id of [...selectedRepos]) if (!repos.find((r) => r.id === id)) selectedRepos.delete(id);
+  renderRepoTiles();
+  updateRunSummary();
+}
+function renderRepoTiles() {
+  const box = $("#repo-tiles");
+  box.replaceChildren();
+  if (!repos.length) { box.append(el("div", { class: "empty", text: "No repositories yet. Paste one or more links above." })); return; }
+  for (const r of repos) {
+    const isGit = /^https?:\/\//.test(r.source);
+    const status = r.status === "fetching" ? el("span", { class: "tile-status" }, el("span", { class: "spinner" }), "fetching")
+      : r.status === "error" ? el("span", { class: "tile-status bad", text: "error" })
+      : el("span", { class: "tile-status", text: `${r.skills.length} skill${r.skills.length === 1 ? "" : "s"}` });
+    const tile = el("button", { class: "tile" + (selectedRepos.has(r.id) ? " selected" : "") + (r.status !== "ready" ? " dim" : ""), title: r.error || r.source, type: "button" },
+      el("span", { class: "tile-box" }, icon(isGit ? "github" : "folder"), status),
+      el("span", { class: "tile-name", text: r.name }));
+    tile.addEventListener("click", () => {
+      if (r.status !== "ready") return;
+      selectedRepos.has(r.id) ? selectedRepos.delete(r.id) : selectedRepos.add(r.id);
+      renderRepoTiles(); updateRunSummary();
+    });
+    const remove = el("span", { class: "tile-x", title: "Remove", text: "×" });
+    remove.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await api(`/api/repos/${r.id}`, { method: "DELETE" });
+      selectedRepos.delete(r.id); loadRepos();
+    });
+    tile.append(remove);
+    if (r.status === "error") {
+      const retry = el("span", { class: "tile-retry", title: "Fetch again", text: "↻" });
+      retry.addEventListener("click", async (e) => { e.stopPropagation(); await api(`/api/repos/${r.id}/refresh`, { method: "POST" }); loadRepos(); });
+      tile.append(retry);
     }
-    if (group.children.length) select.append(group);
+    box.append(tile);
   }
-  const preferred = profiles.find((p) => p.id === "sol-medium" && p.ready) || profiles.find((p) => p.ready && p.id !== "static");
-  if (preferred) select.value = preferred.id;
-  updateHint();
 }
-function updateHint() {
-  const p = profiles.find((x) => x.id === $("#profile").value);
-  $("#profile-hint").textContent = !p
-    ? ""
-    : p.id === "static"
-      ? "Static rules only: fast and free, but misses most wording-only and two-step attacks."
-      : p.provider === "ollama"
-        ? `Static rules + ${p.label} (${p.model}) semantic review on this machine. Free, private, but much weaker than frontier models.`
-        : `Static rules + ${p.label} (${p.model}) semantic review. Uses API credit.`;
-}
-$("#profile").addEventListener("change", updateHint);
-
-// ---- scanning ----
-let pollTimer = null;
-let uploadFile = null;
-$("#upload").addEventListener("change", (e) => {
-  uploadFile = e.target.files[0] || null;
-  if (uploadFile) $("#source").value = `upload: ${uploadFile.name}`;
-});
-$("#source").addEventListener("input", () => { uploadFile = null; });
-
-$("#scan-form").addEventListener("submit", async (e) => {
+$("#repo-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const profile = $("#profile").value;
-  const source = $("#source").value.trim();
-  if (!source && !uploadFile) return;
-  setBusy(true);
+  const sources = $("#repo-input").value.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
+  if (!sources.length) return;
   try {
-    let job;
-    if (uploadFile) {
-      const form = new FormData();
-      form.append("file", uploadFile);
-      form.append("profile", profile);
-      form.append("strict", $("#strict").checked ? "true" : "false");
-      job = await api("/api/scan/upload", { method: "POST", body: form });
-    } else {
-      job = await api("/api/scan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source, profile, strict: $("#strict").checked }),
-      });
-    }
-    watchJob(job.id);
-  } catch (err) {
-    showStatus(`Error: ${err.message}`, false);
-    setBusy(false);
+    const added = await api("/api/repos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sources }) });
+    $("#repo-input").value = "";
+    for (const r of added) if (r.status === "ready") selectedRepos.add(r.id);
+    autoSelect = new Set([...autoSelect, ...added.map((r) => r.id)]);
+    $("#repo-error").textContent = "";
+    loadRepos();
+  } catch (err) { $("#repo-error").textContent = err.message; }
+});
+let autoSelect = new Set(); // newly added repos get selected once their fetch finishes
+$("#select-all").addEventListener("click", () => { repos.filter((r) => r.status === "ready").forEach((r) => selectedRepos.add(r.id)); renderRepoTiles(); updateRunSummary(); });
+$("#select-none").addEventListener("click", () => { selectedRepos.clear(); renderRepoTiles(); updateRunSummary(); });
+
+// ---- operations ----
+let ops = [];
+const selectedOps = new Set();
+async function loadOperations() {
+  ops = await api("/api/operations");
+  const box = $("#op-tiles");
+  box.replaceChildren();
+  for (const op of ops) {
+    const tile = el("button", { class: "tile op" + (op.ready ? "" : " dim"), type: "button",
+      title: op.ready ? op.sub : `Not available: needs ${op.missing}` },
+      el("span", { class: "tile-box" }, icon(op.icon), el("span", { class: "tile-status", text: op.ready ? op.sub : `needs ${op.missing}` })),
+      el("span", { class: "tile-name", text: op.label }));
+    tile.dataset.op = op.id;
+    tile.addEventListener("click", () => {
+      if (!op.ready) return;
+      selectedOps.has(op.id) ? selectedOps.delete(op.id) : selectedOps.add(op.id);
+      tile.classList.toggle("selected", selectedOps.has(op.id));
+      updateRunSummary();
+    });
+    box.append(tile);
   }
+}
+function updateRunSummary() {
+  const chosenRepos = repos.filter((r) => selectedRepos.has(r.id));
+  const skills = chosenRepos.reduce((n, r) => n + r.skills.length, 0);
+  const chosenOps = ops.filter((o) => selectedOps.has(o.id));
+  const perSkill = chosenOps.filter((o) => o.kind !== "pin").length;
+  const pins = chosenOps.some((o) => o.kind === "pin") ? chosenRepos.length : 0;
+  const total = skills * perSkill + pins;
+  $("#run-summary").textContent = chosenRepos.length && chosenOps.length
+    ? `${chosenRepos.length} repo(s) · ${skills} skill(s) · ${chosenOps.length} operation(s) → ${total} task(s)`
+    : "Select repositories and operations.";
+  $("#run-btn").disabled = !total;
+}
+$("#run-btn").addEventListener("click", async () => {
+  $("#run-btn").disabled = true;
+  try {
+    await api("/api/batch", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ repos: [...selectedRepos], operations: [...selectedOps], strict: $("#strict").checked }) });
+    $("#run-error").textContent = "";
+    loadJobs();
+  } catch (err) { $("#run-error").textContent = err.message; }
+  updateRunSummary();
 });
 
-function setBusy(busy) { $("#scan-btn").disabled = busy; }
-
-function showStatus(text, spinning) {
-  const box = $("#job-status");
-  box.classList.remove("hidden");
-  box.replaceChildren(spinning ? el("span", { class: "spinner" }) : "", el("span", { text }));
+// ---- runs ----
+let jobs = [];
+async function loadJobs() {
+  jobs = await api("/api/jobs");
+  renderRuns();
+}
+function fmtSecs(s) { s = Math.max(0, Math.round(s)); return s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`; }
+function renderRuns() {
+  const box = $("#runs");
+  box.replaceChildren();
+  if (!jobs.length) { box.append(el("div", { class: "empty", text: "No runs yet." })); return; }
+  const queued = jobs.filter((j) => j.status === "queued").sort((a, b) => a.started - b.started);
+  const running = jobs.filter((j) => j.status === "running").length;
+  $("#queue-summary").textContent = `${running} running · ${queued.length} waiting · ${jobs.filter((j) => j.status === "done").length} done`;
+  const groups = new Map();
+  for (const j of jobs) {
+    const key = j.batch_id || `single-${j.id}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(j);
+  }
+  const ordered = [...groups.entries()].sort((a, b) => Math.max(...b[1].map((j) => j.started)) - Math.max(...a[1].map((j) => j.started)));
+  for (const [key, items] of ordered.slice(0, 15)) {
+    items.sort((a, b) => a.started - b.started || a.id.localeCompare(b.id));
+    const done = items.filter((j) => ["done", "error", "cancelled", "interrupted"].includes(j.status)).length;
+    const worst = items.filter((j) => j.recommendation).map((j) => j.recommendation)
+      .sort((a, b) => ["DO_NOT_INSTALL", "CAUTION", "SAFE"].indexOf(a) - ["DO_NOT_INSTALL", "CAUTION", "SAFE"].indexOf(b))[0];
+    const when = new Date(Math.min(...items.map((j) => j.started)) * 1000).toLocaleString();
+    const rows = el("div", { class: "task-list" }, ...items.map((j) => taskRow(j, queued)));
+    const open = items.some((j) => j.status === "running" || j.status === "queued") || ordered[0][0] === key;
+    const group = el("details", { class: "batch" }, el("summary", {},
+      el("span", { class: "ftitle", text: key.startsWith("single-") ? `Single scan · ${when}` : `Batch ${key} · ${when}` }),
+      el("span", { class: "rule", text: `${done}/${items.length} finished` }),
+      worst ? el("span", { class: `rec-badge ${worst}`, text: worst.replaceAll("_", " ") }) : ""), rows);
+    if (open) group.open = true;
+    box.append(group);
+  }
+}
+function taskRow(j, queued) {
+  const stages = j.stages || [];
+  const current = stages.indexOf(j.stage);
+  const chips = el("span", { class: "stages" }, ...stages.map((st, i) => {
+    let state = "todo";
+    if (j.status === "done" || i < current) state = "ok";
+    else if (i === current && j.status === "running") state = "run";
+    else if (i === current && (j.status === "error" || j.status === "cancelled")) state = "bad";
+    return el("span", { class: `stage ${state}`, text: st });
+  }));
+  const end = j.finished || Date.now() / 1000;
+  const time = j.status === "queued" ? `waiting #${queued.findIndex((q) => q.id === j.id) + 1}`
+    : j.began ? fmtSecs(end - j.began) : "";
+  const result = j.status === "done" && j.recommendation
+    ? el("span", { class: `rec-badge ${j.recommendation}`, text: `${j.score} · ${j.recommendation.replaceAll("_", " ")}` })
+    : j.status === "done" ? el("span", { class: "rec-badge", text: "done" })
+    : ["error", "cancelled", "interrupted"].includes(j.status) ? el("span", { class: "rec-badge DO_NOT_INSTALL", text: j.status, title: j.error || "" })
+    : el("span", { class: "rec-badge", text: j.status });
+  const actions = el("span", { class: "task-actions" });
+  if (j.status === "done") actions.append(el("button", { text: "Open", onclick: () => openTask(j.id) }));
+  if (j.status === "queued" || j.status === "running") actions.append(el("button", { text: "Cancel", onclick: async () => { await api(`/api/jobs/${j.id}/cancel`, { method: "POST" }); loadJobs(); } }));
+  const row = el("div", { class: "task" + (j.status === "running" ? " running" : "") },
+    el("span", { class: "task-name" }, el("strong", { text: j.skill || j.repo_name }), el("span", { class: "desc", text: j.repo_name })),
+    el("span", { class: "op-chip", text: j.label || j.operation }),
+    chips, el("span", { class: "num", text: time }), result, actions);
+  if (j.error && j.status === "error") row.append(el("div", { class: "task-error", text: j.error }));
+  return row;
+}
+async function openTask(id) {
+  const job = await api(`/api/jobs/${id}`);
+  showTab("batch");
+  renderReport(job);
+  $("#result").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function watchJob(id) {
-  clearInterval(pollTimer);
-  $("#result").classList.add("hidden");
-  const t0 = Date.now();
-  const tick = async () => {
-    let job;
-    try { job = await api(`/api/jobs/${id}`); } catch (err) { showStatus(`Error: ${err.message}`, false); clearInterval(pollTimer); setBusy(false); return; }
-    const secs = Math.round((Date.now() - t0) / 1000);
-    if (job.status === "queued" || job.status === "running") {
-      showStatus(`Scanning ${job.source} with ${job.profile} … ${secs}s`, true);
-      return;
+// ---- polling ----
+async function poll() {
+  try {
+    const before = repos.filter((r) => r.status === "fetching").map((r) => r.id);
+    await loadRepos();
+    for (const id of before) {
+      const r = repos.find((x) => x.id === id);
+      if (r && r.status === "ready" && autoSelect.has(id)) { selectedRepos.add(id); autoSelect.delete(id); renderRepoTiles(); updateRunSummary(); }
     }
-    clearInterval(pollTimer);
-    setBusy(false);
-    if (job.status === "error" || job.status === "interrupted") { showStatus(`Scan ${job.status}: ${job.error}`, false); return; }
-    $("#job-status").classList.add("hidden");
-    renderReport(job);
-  };
-  pollTimer = setInterval(tick, 1500);
-  tick();
+    if ($("#tab-batch") && !$("#tab-batch").classList.contains("hidden")) await loadJobs();
+  } catch (_) { /* server restarting */ }
 }
+setInterval(poll, 2000);
 
 // ---- report ----
 // job.report is the fork review result: {report (upstream), verdict, judge, explanation, reveal, ...}
@@ -156,7 +274,7 @@ function renderReport(job) {
   rec.classList.add(verdict.recommendation || "");
   const comp = report.analysis_completeness || {};
   $(".meta", root).textContent =
-    `${job.source} · ${job.strict ? "strict verdict" : "upstream verdict"} · severity ${verdict.severity || "?"} · ` +
+    `${job.repo_name || job.source}${job.skill ? " / " + job.skill : ""} · ${job.label || ""} · ${job.strict ? "strict verdict" : "upstream verdict"} · severity ${verdict.severity || "?"} · ` +
     `${comp.scanned_components ?? "?"}/${comp.total_components ?? "?"} files scanned · ${comp.status || ""}`;
   const reasons = $(".reasons", root);
   for (const r of verdict.reasons || []) reasons.append(el("li", { text: r }));
@@ -431,8 +549,12 @@ function repoRow(r) {
         catch (err) { e.target.textContent = "failed"; }
       } }),
       " ",
-      el("button", { class: "primary", text: "Scan", onclick: () => {
-        $("#source").value = r.html_url; uploadFile = null; showTab("scan"); $("#scan-form").requestSubmit();
+      el("button", { class: "primary", text: "Add to batch", onclick: async (e) => {
+        e.target.disabled = true;
+        const added = await api("/api/repos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sources: [r.html_url] }) });
+        for (const x of added) autoSelect.add(x.id);
+        e.target.textContent = "Added ✓";
+        loadRepos();
       } }))
   );
   return row;
@@ -447,11 +569,11 @@ async function loadHistory() {
   for (const j of jobs) {
     tbody.append(el("tr", {},
       el("td", { text: new Date(j.started * 1000).toLocaleString() }),
-      el("td", { text: j.source }),
-      el("td", { text: j.profile + (j.strict ? " · strict" : "") }),
+      el("td", { text: `${j.repo_name || j.source}${j.skill ? " / " + j.skill : ""}` }),
+      el("td", { text: (j.label || j.profile) + (j.strict ? " · strict" : "") }),
       el("td", { text: j.status === "done" ? `${j.score} · ${(j.recommendation || "").replaceAll("_", " ")}` : j.status }),
       el("td", {},
-        j.status === "done" ? el("button", { text: "Open", onclick: () => { showTab("scan"); watchJob(j.id); } }) : "",
+        j.status === "done" ? el("button", { text: "Open", onclick: () => openTask(j.id) }) : "",
         " ",
         el("button", { text: "Delete", onclick: async () => { await api(`/api/jobs/${j.id}`, { method: "DELETE" }); loadHistory(); } }))));
   }
@@ -460,7 +582,7 @@ async function loadHistory() {
     tbody)));
 }
 
-loadProfiles().catch((err) => { $("#profile-hint").textContent = `Could not load profiles: ${err.message}`; });
+Promise.all([loadRepos(), loadOperations(), loadJobs()]).catch((err) => { $("#run-error").textContent = `Could not reach the server: ${err.message}`; });
 
 // ---- pins ----
 async function loadPins() {

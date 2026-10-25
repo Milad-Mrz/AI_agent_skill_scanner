@@ -11,32 +11,45 @@
   <h1>Skill Scanner</h1>
   <span class="sub">SkillSpector fork · local only</span>
   <nav>
-    <button class="tab active" data-tab="scan">Scan</button>
+    <button class="tab active" data-tab="batch">Scan</button>
     <button class="tab" data-tab="search">Search GitHub</button>
-    <button class="tab" data-tab="history">History</button>
     <button class="tab" data-tab="pins">Pins</button>
+    <button class="tab" data-tab="history">History</button>
+    <button id="theme-toggle" class="theme-btn" type="button" title="Switch colour theme">☾ Dark</button>
   </nav>
 </header>
 
 <main>
-  <section id="tab-scan" class="panel">
-    <form id="scan-form" class="card">
-      <label for="source">Skill URL or local path</label>
-      <div class="row">
-        <input id="source" type="text" placeholder="https://github.com/owner/repo  or  /path/to/skill" autocomplete="off">
-        <span class="or">or</span>
-        <label class="file-btn">Upload .zip / .md<input id="upload" type="file" accept=".zip,.md" hidden></label>
-      </div>
-      <div class="row">
-        <label for="profile" class="inline">Model</label>
-        <select id="profile"></select>
-        <label class="check" title="Raise the verdict when findings are HIGH or CRITICAL (see docs/FORK_ROADMAP.md 3.1)"><input id="strict" type="checkbox" checked> Strict verdict</label>
-        <button type="submit" class="primary" id="scan-btn">Scan</button>
-      </div>
-      <p class="hint" id="profile-hint"></p>
-    </form>
+  <section id="tab-batch" class="panel">
+    <div class="card">
+      <h2 class="step"><span class="step-n">1</span> Repositories</h2>
+      <form id="repo-form" class="row">
+        <textarea id="repo-input" rows="2" placeholder="Paste one or more GitHub links or local paths (space or new line separated)&#10;https://github.com/owner/repo   https://github.com/owner/repo/tree/main/skills/x"></textarea>
+        <button type="submit" class="primary">Add</button>
+      </form>
+      <p class="hint error" id="repo-error"></p>
+      <div class="tiles-head"><span class="hint">Click tiles to select. Each repository is fetched once and split into its skills.</span>
+        <span><button id="select-all" type="button" class="link">all</button> · <button id="select-none" type="button" class="link">none</button></span></div>
+      <div id="repo-tiles" class="tiles"></div>
+    </div>
 
-    <div id="job-status" class="card hidden"></div>
+    <div class="card">
+      <h2 class="step"><span class="step-n">2</span> Operations</h2>
+      <div id="op-tiles" class="tiles"></div>
+      <div class="row run-row">
+        <label class="check" title="Raise the verdict when findings are HIGH or CRITICAL"><input id="strict" type="checkbox" checked> Strict verdict</label>
+        <span id="run-summary" class="hint">Select repositories and operations.</span>
+        <button id="run-btn" class="primary run" type="button" disabled>Run</button>
+      </div>
+      <p class="hint error" id="run-error"></p>
+      <p class="hint">Model tiles run the upstream LLM stage and the whole-skill judge. Explain and Sandbox use the first selected model (Sol if none). LLM tasks run one at a time; static tasks run in parallel. You can add repositories and start more runs while others are going: they join the waiting list.</p>
+    </div>
+
+    <div class="card">
+      <div class="findings-head"><h2 class="step"><span class="step-n">3</span> Runs</h2><span id="queue-summary" class="hint"></span></div>
+      <div id="runs"></div>
+    </div>
+
     <div id="result" class="hidden"></div>
   </section>
 
