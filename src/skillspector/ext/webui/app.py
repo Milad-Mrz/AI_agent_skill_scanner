@@ -944,7 +944,8 @@ def combined_results(source: str, skill: str | None = None) -> dict:
         skills.setdefault(name, []).append(found)
 
     result = []
-    for name, runs in sorted(skills.items()):
+    # Repository-level entries (pins) go after the skills.
+    for name, runs in sorted(skills.items(), key=lambda kv: (kv[0].startswith("("), kv[0])):
         runs.sort(key=lambda j: j.label or j.operation)
         merged: dict[str, dict] = {}
         for found in runs:
