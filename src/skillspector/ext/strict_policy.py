@@ -25,8 +25,8 @@ from skillspector.models import Finding
 
 STRICT_ENV = "SKILLSPECTOR_STRICT"
 
-# Rule-id prefixes emitted by the LLM-backed semantic analyzers.
-_SEMANTIC_PREFIXES = ("SDI-", "SQP-", "SSD-")
+# Rule-id prefixes emitted by the LLM-backed semantic analyzers (BJ- is the fork bundle judge).
+_SEMANTIC_PREFIXES = ("SDI-", "SQP-", "SSD-", "BJ-")
 _MIN_CONFIDENCE = 0.5
 
 

@@ -1,7 +1,8 @@
 """Local FastAPI web UI for scanning agent skills.
 
-Scans run the ``skillspector`` CLI in a subprocess with the environment of the
-selected LLM profile, so the UI never imports untrusted skill content into this
+Each scan runs the fork review pipeline (``python -m skillspector.ext.review``: upstream
+scan, reveal, bundle judge, explain, combined verdict) in a subprocess with the
+environment of the selected LLM profile, so the UI never imports untrusted skill content into this
 process. The page escapes everything it shows and never renders skill markdown.
 
 Bind to localhost only: the UI accepts local paths and spends API credit.
@@ -13,6 +14,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -66,7 +68,8 @@ class Job:
     cleanup: Path | None = None
 
     def summary(self) -> dict:
-        risk = (self.report or {}).get("risk_assessment", {})
+        report = self.report or {}
+        risk = report.get("verdict") or report.get("risk_assessment", {})
         return {
             "id": self.id,
             "source": self.source,
@@ -134,9 +137,11 @@ def _run_scan(job: Job, target: str) -> None:
     _save(job)
     workdir = Path(tempfile.mkdtemp(prefix="skillui-"))
     report_path = workdir / "report.json"
-    cmd = ["skillspector", "scan", target, "--format", "json", "--output", str(report_path)]
+    cmd = [sys.executable, "-m", "skillspector.ext.review", target, "--out", str(report_path)]
     if job.profile == STATIC_PROFILE:
         cmd.append("--no-llm")
+    if not job.strict:
+        cmd.append("--no-strict")
     try:
         result = subprocess.run(
             cmd,
@@ -151,10 +156,6 @@ def _run_scan(job: Job, target: str) -> None:
                 f"scan failed (exit {result.returncode}): {result.stderr.strip()[-800:]}"
             )
         job.report = json.loads(report_path.read_text(encoding="utf-8"))
-        # Warnings such as a degraded LLM stage matter to the reader; keep them.
-        job.report["_ui_warnings"] = [
-            line for line in result.stderr.splitlines() if "WARNING" in line or "ERROR" in line
-        ][-20:]
         job.status = "done"
     except Exception as exc:  # noqa: BLE001 - surfaced to the user as the job error
         job.error = str(exc)
@@ -264,6 +265,54 @@ def job(job_id: str) -> dict:
     if not found:
         raise HTTPException(404, "unknown job")
     return {**found.summary(), "report": found.report}
+
+
+class RewriteRequest(BaseModel):
+    keep: list[int] = Field(..., description="Indexes of explained instructions to keep")
+
+
+@app.post("/api/jobs/{job_id}/rewrite")
+def rewrite_job(job_id: str, request: RewriteRequest) -> dict:
+    """Build a clean SKILL.md from the kept plain-English instructions of a finished scan."""
+    found = _jobs.get(job_id)
+    if not found or found.status != "done" or not found.report:
+        raise HTTPException(404, "no finished scan with that id")
+    if found.profile == STATIC_PROFILE:
+        raise HTTPException(400, "rewrite needs a scan made with an LLM model")
+    explanation = found.report.get("explanation") or {}
+    items = explanation.get("items") or []
+    kept = [items[i] for i in request.keep if 0 <= i < len(items)]
+    if not kept:
+        raise HTTPException(400, "keep at least one instruction")
+    with tempfile.TemporaryDirectory(prefix="skillui-rewrite-") as tmp:
+        source, out = Path(tmp) / "in.json", Path(tmp) / "out.json"
+        source.write_text(
+            json.dumps({"purpose": explanation.get("purpose", ""), "items": kept}),
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "skillspector.ext.review",
+                "rewrite",
+                "--input",
+                str(source),
+                "--out",
+                str(out),
+            ],
+            env=_scan_env(found.profile, found.strict),
+            capture_output=True,
+            text=True,
+            timeout=SCAN_TIMEOUT_SECONDS,
+            check=False,
+        )
+        if not out.is_file():
+            raise HTTPException(502, f"rewrite failed: {result.stderr.strip()[-500:]}")
+        rewritten = json.loads(out.read_text(encoding="utf-8"))
+    found.report["rewrite"] = rewritten
+    _save(found)
+    return rewritten
 
 
 @app.delete("/api/jobs/{job_id}")

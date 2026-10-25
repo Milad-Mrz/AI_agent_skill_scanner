@@ -16,7 +16,17 @@ python -m skillspector.ext.webui     # http://127.0.0.1:8765  (localhost only)
 
   A profile is selectable only when its key is set in the environment or `.env`, or, for local models, when the model has been pulled into Ollama.
 - **Strict verdict** (on by default): applies `SKILLSPECTOR_STRICT=1` floors. See `docs/FORK_ROADMAP.md` §3.1.
-- **Results:** score, verdict, which models were used and how many tokens, warnings (for example a degraded LLM stage), and the list of findings with severity filters. Expanding a finding shows its explanation, code, evidence and remediation.
+- **Pipeline:** every scan runs `python -m skillspector.ext.review` with these stages:
+  1. the upstream scan;
+  2. **reveal**, pure code;
+  3. the **bundle judge**, one LLM review of the whole skill, keeping only findings whose quote is found in the files;
+  4. **explain**, a plain-English list of every instruction plus a coverage check;
+  5. a **combined verdict** that the LLM stages can only raise.
+- **Results:** score, verdict and the reasons for it, the models used and token counts, a summary of each stage, and warnings and anomalies.
+- **Findings view:** upstream, fork-rule (FG) and bundle-judge (BJ) findings together, with severity filters. Expanding a finding shows its explanation, code, evidence and remediation.
+- **Hidden content view:** every invisible character, look-alike letter, decoded blob, piece of hidden markup and unreadable token, with the fully revealed text of each file.
+- **Instructions view:** the plain-English instructions with their risk, the share of lines described per file, and the lines the model left out, shown in red.
+- **Clean rewrite:** tick the instructions to keep (high and critical ones start unticked), then click *Build clean rewrite*. A new `SKILL.md` is written from the kept plain-English instructions only, re-checked, and offered as a download.
 - **Check URL on ESET:** copies the skill URL and opens the ESET AI Skills Checker, which has no API.
 - **Export JSON:** downloads the full report.
 - **Search GitHub:** uses repository metadata only and computes a trust score (age, star growth, forks, issues, owner type, license, and contributors via "Details"). "Scan" sends a repository straight to the scanner.

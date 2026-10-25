@@ -43,7 +43,7 @@ resolve_input → build_context → [analyzers ‖] → meta_analyzer → report
 - The hook in `nodes/report.py` is 6 lines.
 - A degraded LLM stage already turns SAFE into CAUTION upstream, and the UI shows a banner for it.
 
-### 3.2 New static analyzers
+### 3.2 New static analyzers (done: `feat/static-gaps`, `static_fork_gaps.py` FG1–FG12)
 Each item: first check what upstream already covers, then add only what's missing.
 - `static_patterns_guardfall`: normalize shell text before matching (remove quotes inside words, join split strings, expand `$'\xNN'`, `${a}${b}`, `printf` building), then run the existing exfiltration and execution patterns again on the result.
 - `static_encoded_payloads`: decode base16/32/64/85, binary, Morse, ROT-n, URL encoding, punycode and nested layers, then rescan the decoded text. Content that can't be decoded but isn't readable either is flagged too.
@@ -52,12 +52,12 @@ Each item: first check what upstream already covers, then add only what's missin
 - `static_trigger_breadth`: frontmatter `description` written to match everything, or name collisions with other skills. Check the existing trigger-abuse rules first.
 - `static_hidden_markup`: HTML comments, `<details>`, alt text and link titles carrying instructions.
 
-### 3.3 Whole-bundle judge (SkillSecurer style)
+### 3.3 Whole-bundle judge (SkillSecurer style) (done: `feat/bundle-judge`, `ext/judge.py`, `ext/review.py`)
 - New semantic node `semantic_bundle_judge`: one call sees the whole skill. It checks stated purpose against actual capabilities, input sources against sinks (indirect injection), and dormant or conditional logic.
 - Output is structured findings with **quoted spans**. A span that can't be found in the file cache is dropped (see `llm_provenance.py` and `security_reconstruction.py`, which may already help).
 - Refusal detection with automatic fallback to another model.
 
-### 3.4 Reveal, explain and rewrite (`ext/`)
+### 3.4 Reveal, explain and rewrite (done: `feat/reveal-explain`; these run as stages of `ext/review.py` and in the UI rather than as separate CLI subcommands)
 - `skillspector reveal <skill>`: produces a copy with invisible characters tagged, homoglyphs marked, blobs decoded and hidden markup pulled out. Pure code, no model.
 - `skillspector explain <skill>`: the model, with no tools, turns every instruction into `{source, plain_english, category, risk}`. A code check then confirms every line is covered: uncovered lines are flagged in red, and disagreements with the static findings are highlighted.
 - `skillspector rewrite <skill> --approve items.json`: builds a clean `SKILL.md` from the approved items, placing safety steps on the path the agent actually follows. Scripts are left untouched.

@@ -102,7 +102,8 @@ def test_static_scan_job_completes(client: TestClient) -> None:
             break
         time.sleep(0.5)
     assert state["status"] == "done", state.get("error")
-    assert {i["id"] for i in state["report"]["issues"]} >= {"P1"}
+    assert {i["id"] for i in state["report"]["verdict"]["issues"]} >= {"P1"}
+    assert state["report"]["report"]["issues"]  # upstream report is kept
 
 
 def test_upload_rejects_other_file_types(client: TestClient) -> None:
@@ -129,7 +130,7 @@ def test_finished_scan_is_saved_and_reloaded(client: TestClient, tmp_path: Path)
     reloaded = client.get(f"/api/jobs/{job['id']}").json()
     assert reloaded["status"] == "done"
     assert reloaded["strict"] is True
-    assert reloaded["report"]["issues"]
+    assert reloaded["report"]["verdict"]["issues"]
 
 
 def test_running_scan_is_marked_interrupted_after_restart(client: TestClient) -> None:
@@ -140,3 +141,10 @@ def test_running_scan_is_marked_interrupted_after_restart(client: TestClient) ->
     assert client.get("/api/jobs/abc123").json()["status"] == "interrupted"
     assert client.delete("/api/jobs/abc123").status_code == 200
     assert client.get("/api/jobs/abc123").status_code == 404
+
+
+def test_rewrite_requires_llm_scan(client: TestClient) -> None:
+    webui._jobs["s1"] = webui.Job(id="s1", source="x", profile="static", status="done", report={})
+    assert client.post("/api/jobs/s1/rewrite", json={"keep": [0]}).status_code == 404
+    webui._jobs["s1"].report = {"verdict": {}, "explanation": {"items": []}}
+    assert client.post("/api/jobs/s1/rewrite", json={"keep": [0]}).status_code == 400

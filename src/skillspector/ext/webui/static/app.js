@@ -139,47 +139,76 @@ function watchJob(id) {
 }
 
 // ---- report ----
+// job.report is the fork review result: {report (upstream), verdict, judge, explanation, reveal, ...}
 function renderReport(job) {
-  const report = job.report;
+  const review = job.report;
+  // Scans saved before the review pipeline hold the upstream report directly.
+  const report = review.report || (review.risk_assessment ? review : {});
+  const verdict = review.verdict || report.risk_assessment || {};
   const root = $("#result");
   root.replaceChildren($("#tpl-result").content.cloneNode(true));
   root.classList.remove("hidden");
 
-  const risk = report.risk_assessment || {};
-  $(".score-num", root).textContent = risk.score ?? "–";
+  $(".score-num", root).textContent = verdict.score ?? "–";
   const rec = $(".rec", root);
-  rec.textContent = (risk.recommendation || "").replaceAll("_", " ");
-  rec.classList.add(risk.recommendation || "");
+  rec.textContent = (verdict.recommendation || "").replaceAll("_", " ");
+  rec.classList.add(verdict.recommendation || "");
   const comp = report.analysis_completeness || {};
   $(".meta", root).textContent =
-    `${job.source} · ${job.strict ? "strict verdict" : "upstream verdict"} · severity ${risk.severity || "?"} · highest finding ${risk.max_issue_severity || "none"} · ` +
+    `${job.source} · ${job.strict ? "strict verdict" : "upstream verdict"} · severity ${verdict.severity || "?"} · ` +
     `${comp.scanned_components ?? "?"}/${comp.total_components ?? "?"} files scanned · ${comp.status || ""}`;
+  const reasons = $(".reasons", root);
+  for (const r of verdict.reasons || []) reasons.append(el("li", { text: r }));
 
   const md = report.metadata || {};
   const usage = md.inference_usage || [];
   const models = [...new Set(usage.map((u) => `${u.provider}/${u.model}`))];
   const tokens = usage.reduce((n, u) => n + (u.total_tokens || 0), 0);
-  $(".llm", root).textContent = md.llm_requested
-    ? (md.llm_available && usage.length
-        ? `LLM stage: ${models.join(", ")} · ${usage.length} calls · ${tokens.toLocaleString()} tokens`
-        : "LLM stage requested but NOT available: this report reflects static analysis only.")
-    : "LLM stage off (static rules only).";
+  const stages = [];
+  if (md.llm_requested) {
+    stages.push(md.llm_available && usage.length
+      ? `Upstream LLM stage: ${models.join(", ")} · ${usage.length} calls · ${tokens.toLocaleString()} tokens`
+      : "Upstream LLM stage requested but NOT available: static analysis only.");
+    const j = review.judge;
+    if (j) stages.push(j.error ? `Bundle judge failed: ${j.error}` : `Bundle judge: ${j.findings.length} grounded finding(s), ${j.ungrounded.length} dropped as unquotable`);
+    const e = review.explanation;
+    if (e) stages.push(e.error && !e.items.length ? `Explain failed: ${e.error}` : `Explain: ${e.items.length} instructions, ${e.uncovered_lines} line(s) not described`);
+  } else {
+    stages.push("LLM stages off (static rules and reveal only).");
+  }
+  $(".llm", root).textContent = stages.join(" · ");
 
   const warnings = $(".warnings", root);
-  for (const w of report._ui_warnings || []) warnings.append(el("li", { text: w.replace(/^.*?(WARNING|ERROR)\s*/, "$1 ") }));
+  for (const w of review.warnings || report._ui_warnings || []) warnings.append(el("li", { text: w.replace(/^.*?(WARNING|ERROR)\s*/, "$1 ") }));
+  for (const stage of ["judge", "explanation"]) {
+    const a = review[stage]?.anomaly;
+    if (a) warnings.append(el("li", { text: `ANOMALY (${stage}): ${a}` }));
+  }
 
   $(".eset", root).addEventListener("click", () => {
     if (/^https?:\/\//.test(job.source)) navigator.clipboard?.writeText(job.source).catch(() => {});
     window.open("https://www.eset.com/us/home/ai-skills-checker/", "_blank", "noopener");
   });
   $(".export", root).addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
-    const a = el("a", { href: URL.createObjectURL(blob), download: `skill-report-${job.id}.json` });
+    const blob = new Blob([JSON.stringify(review, null, 2)], { type: "application/json" });
+    const a = el("a", { href: URL.createObjectURL(blob), download: `skill-review-${job.id}.json` });
     a.click();
     URL.revokeObjectURL(a.href);
   });
 
-  const issues = (report.issues || []).slice().sort(
+  // sub-tabs
+  root.querySelectorAll(".subtab").forEach((b) => b.addEventListener("click", () => {
+    root.querySelectorAll(".subtab").forEach((x) => x.classList.toggle("active", x === b));
+    root.querySelectorAll(".subpanel").forEach((p) => p.classList.toggle("hidden", p.dataset.panel !== b.dataset.panel));
+  }));
+
+  renderFindings(root, verdict.issues || report.issues || []);
+  renderHidden(root, review.reveal || []);
+  renderInstructions(root, job, review);
+}
+
+function renderFindings(root, all) {
+  const issues = all.slice().sort(
     (a, b) => SEV_ORDER.indexOf(a.severity) - SEV_ORDER.indexOf(b.severity) || (b.confidence || 0) - (a.confidence || 0)
   );
   $(".count", root).textContent = `(${issues.length})`;
@@ -192,18 +221,90 @@ function renderReport(job) {
     b.addEventListener("click", () => {
       active.has(sev) ? active.delete(sev) : active.add(sev);
       b.classList.toggle("on");
-      drawFindings();
+      draw();
     });
     filters.append(b);
   }
-  function drawFindings() {
+  function draw() {
     const list = $(".findings", root);
     list.replaceChildren();
     const shown = issues.filter((i) => active.has(i.severity));
     if (!shown.length) { list.append(el("div", { class: "empty", text: issues.length ? "No findings match the filter." : "No findings." })); return; }
     for (const i of shown) list.append(renderFinding(i));
   }
-  drawFindings();
+  draw();
+}
+
+function renderHidden(root, files) {
+  const box = $(".hidden-list", root);
+  const total = files.reduce((n, f) => n + f.items.length, 0);
+  $(".hidden-count", root).textContent = `(${total})`;
+  if (!files.length) { box.append(el("div", { class: "empty", text: "Nothing hidden: no invisible characters, look-alike letters, encoded blobs or hidden markup." })); return; }
+  for (const f of files) {
+    const rows = el("tbody", {}, ...f.items.map((i) => el("tr", {},
+      el("td", { class: "num", text: `L${i.line}` }),
+      el("td", {}, el("span", { class: `kind kind-${i.kind}`, text: i.kind })),
+      el("td", { text: i.detail }),
+      el("td", {}, i.original ? el("code", { text: i.original }) : ""))));
+    box.append(el("details", { class: "finding", open: "" },
+      el("summary", {}, el("span", { class: "loc", text: f.path }), el("span", { class: "rule", text: Object.entries(f.counts).map(([k, v]) => `${k} ${v}`).join(" · ") })),
+      el("div", { class: "table-wrap" }, el("table", {}, rows)),
+      el("h4", { text: "Revealed text" }),
+      el("pre", { class: "revealed", text: f.revealed })));
+  }
+}
+
+function renderInstructions(root, job, review) {
+  const box = $(".instructions", root);
+  const e = review.explanation;
+  if (!e) { box.append(el("div", { class: "empty", text: "Run the scan with an LLM model to get the plain-English list of instructions." })); return; }
+  if (e.error && !e.items.length) { box.append(el("div", { class: "empty", text: `Explain failed: ${e.error}` })); return; }
+  $(".instr-count", root).textContent = `(${e.items.length})`;
+  box.append(el("p", { class: "purpose", text: `Stated purpose: ${e.purpose}` }));
+  for (const c of e.coverage) {
+    box.append(el("p", { class: c.uncovered.length ? "cov warn" : "cov", text:
+      `${c.file}: ${c.percent}% of lines described` + (c.uncovered.length ? ` · NOT described: lines ${c.uncovered.join(", ")}` : "") }));
+  }
+  const tbody = el("tbody");
+  e.items.forEach((item, index) => {
+    const risky = ["high", "critical"].includes(item.risk);
+    const box_ = el("input", { type: "checkbox", "data-index": String(index) });
+    box_.checked = !risky && item.grounded;
+    tbody.append(el("tr", { class: risky ? "risky" : "" },
+      el("td", {}, box_),
+      el("td", { class: "num", text: `${item.file}:${item.start_line}${item.end_line !== item.start_line ? "-" + item.end_line : ""}` }),
+      el("td", {}, el("span", { class: `risk risk-${item.risk}`, text: item.risk })),
+      el("td", { text: item.category }),
+      el("td", {}, el("div", { text: item.plain_english }), item.grounded ? "" : el("div", { class: "desc", text: "⚠ quote not found in the file" }))));
+  });
+  box.append(el("div", { class: "table-wrap" }, el("table", {},
+    el("thead", {}, el("tr", {}, el("th", { text: "Keep" }), el("th", { text: "Source" }), el("th", { text: "Risk" }), el("th", { text: "Type" }), el("th", { text: "What it tells the agent" }))),
+    tbody)));
+  const out = el("div", { class: "rewrite-out" });
+  const button = el("button", { class: "primary", text: "Build clean rewrite from kept instructions" });
+  button.addEventListener("click", async () => {
+    const keep = [...tbody.querySelectorAll("input:checked")].map((c) => Number(c.dataset.index));
+    button.disabled = true;
+    out.replaceChildren(el("span", { class: "spinner" }), "Writing a clean SKILL.md…");
+    try {
+      const r = await api(`/api/jobs/${job.id}/rewrite`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ keep }) });
+      showRewrite(out, r, job);
+    } catch (err) { out.replaceChildren(el("p", { text: `Rewrite failed: ${err.message}` })); }
+    button.disabled = false;
+  });
+  box.append(el("p", { class: "hint", text: "High and critical instructions start unticked. The rewrite uses only the ticked plain-English instructions, never the original text, then re-checks the result. Bundled scripts are not rewritten." }), button, out);
+  if (review.rewrite) showRewrite(out, review.rewrite, job);
+}
+
+function showRewrite(out, r, job) {
+  out.replaceChildren(
+    el("p", { class: r.clean ? "cov" : "cov warn", text: r.error ? `Rewrite failed: ${r.error}` : r.clean ? "Re-check passed: no fork rule findings and nothing hidden." : `Re-check found ${r.recheck_findings.length} finding(s) and ${r.hidden_items} hidden item(s): review before use.` }),
+    ...(r.recheck_findings || []).map((f) => el("p", { class: "desc", text: `${f.rule_id} line ${f.line}: ${f.message}` })),
+    r.skill_md ? el("pre", { text: r.skill_md }) : "",
+    r.skill_md ? el("button", { text: "Download SKILL.md", onclick: () => {
+      const a = el("a", { href: URL.createObjectURL(new Blob([r.skill_md], { type: "text/markdown" })), download: "SKILL.md" });
+      a.click(); URL.revokeObjectURL(a.href);
+    } }) : "");
 }
 
 function renderFinding(i) {
