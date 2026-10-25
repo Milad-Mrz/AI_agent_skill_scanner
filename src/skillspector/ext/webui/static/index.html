@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skill Scanner</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <h1>Skill Scanner</h1>
+  <span class="sub">SkillSpector fork · local only</span>
+  <nav>
+    <button class="tab active" data-tab="scan">Scan</button>
+    <button class="tab" data-tab="search">Search GitHub</button>
+    <button class="tab" data-tab="history">History</button>
+  </nav>
+</header>
+
+<main>
+  <section id="tab-scan" class="panel">
+    <form id="scan-form" class="card">
+      <label for="source">Skill URL or local path</label>
+      <div class="row">
+        <input id="source" type="text" placeholder="https://github.com/owner/repo  or  /path/to/skill" autocomplete="off">
+        <span class="or">or</span>
+        <label class="file-btn">Upload .zip / .md<input id="upload" type="file" accept=".zip,.md" hidden></label>
+      </div>
+      <div class="row">
+        <label for="profile" class="inline">Model</label>
+        <select id="profile"></select>
+        <button type="submit" class="primary" id="scan-btn">Scan</button>
+      </div>
+      <p class="hint" id="profile-hint"></p>
+    </form>
+
+    <div id="job-status" class="card hidden"></div>
+    <div id="result" class="hidden"></div>
+  </section>
+
+  <section id="tab-search" class="panel hidden">
+    <form id="search-form" class="card">
+      <label for="query">Search skills on GitHub (metadata only, no file content is fetched)</label>
+      <div class="row">
+        <input id="query" type="text" placeholder="e.g. claude skills, pdf skill, code review" autocomplete="off">
+        <button type="submit" class="primary">Search</button>
+      </div>
+      <p class="hint">Trust score uses repo age, star growth, forks, issues, owner type, license and contributors. It is a hint, not a verdict: always scan before installing.</p>
+    </form>
+    <div id="search-results"></div>
+  </section>
+
+  <section id="tab-history" class="panel hidden">
+    <div id="history" class="card"></div>
+  </section>
+</main>
+
+<template id="tpl-result">
+  <div class="card verdict">
+    <div class="verdict-main">
+      <div class="score"><span class="score-num"></span><span class="score-of">/100</span></div>
+      <div>
+        <div class="rec"></div>
+        <div class="meta"></div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn eset">Check URL on ESET</button>
+      <button class="btn export">Export JSON</button>
+    </div>
+    <div class="llm"></div>
+    <ul class="warnings"></ul>
+  </div>
+  <div class="card">
+    <div class="findings-head">
+      <h2>Findings <span class="count"></span></h2>
+      <div class="filters"></div>
+    </div>
+    <div class="findings"></div>
+  </div>
+</template>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

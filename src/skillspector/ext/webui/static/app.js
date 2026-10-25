@@ -1,0 +1,305 @@
+// Skill Scanner UI. All skill-derived text is inserted with textContent, never innerHTML.
+"use strict";
+
+const SEV_ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
+const $ = (sel, root = document) => root.querySelector(sel);
+
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") node.className = v;
+    else if (k === "text") node.textContent = v;
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v);
+  }
+  for (const c of children) if (c != null) node.append(c);
+  return node;
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, opts);
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.detail || res.statusText);
+  return body;
+}
+
+// ---- tabs ----
+document.querySelectorAll(".tab").forEach((btn) =>
+  btn.addEventListener("click", () => showTab(btn.dataset.tab))
+);
+function showTab(name) {
+  document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+  document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("hidden", p.id !== `tab-${name}`));
+  if (name === "history") loadHistory();
+}
+
+// ---- profiles ----
+let profiles = [];
+async function loadProfiles() {
+  profiles = await api("/api/profiles");
+  const select = $("#profile");
+  select.replaceChildren();
+  for (const p of profiles) {
+    const label = p.ready ? p.label : `${p.label} (needs ${p.key})`;
+    const opt = el("option", { value: p.id, text: label });
+    if (!p.ready) opt.disabled = true;
+    select.append(opt);
+  }
+  const preferred = profiles.find((p) => p.id === "sol-medium" && p.ready) || profiles.find((p) => p.ready && p.id !== "static");
+  if (preferred) select.value = preferred.id;
+  updateHint();
+}
+function updateHint() {
+  const p = profiles.find((x) => x.id === $("#profile").value);
+  $("#profile-hint").textContent = !p
+    ? ""
+    : p.id === "static"
+      ? "Static rules only: fast and free, but misses most wording-only and two-step attacks."
+      : `Static rules + ${p.label} (${p.model}) semantic review. Uses API credit.`;
+}
+$("#profile").addEventListener("change", updateHint);
+
+// ---- scanning ----
+let pollTimer = null;
+let uploadFile = null;
+$("#upload").addEventListener("change", (e) => {
+  uploadFile = e.target.files[0] || null;
+  if (uploadFile) $("#source").value = `upload: ${uploadFile.name}`;
+});
+$("#source").addEventListener("input", () => { uploadFile = null; });
+
+$("#scan-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const profile = $("#profile").value;
+  const source = $("#source").value.trim();
+  if (!source && !uploadFile) return;
+  setBusy(true);
+  try {
+    let job;
+    if (uploadFile) {
+      const form = new FormData();
+      form.append("file", uploadFile);
+      form.append("profile", profile);
+      job = await api("/api/scan/upload", { method: "POST", body: form });
+    } else {
+      job = await api("/api/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source, profile }),
+      });
+    }
+    watchJob(job.id);
+  } catch (err) {
+    showStatus(`Error: ${err.message}`, false);
+    setBusy(false);
+  }
+});
+
+function setBusy(busy) { $("#scan-btn").disabled = busy; }
+
+function showStatus(text, spinning) {
+  const box = $("#job-status");
+  box.classList.remove("hidden");
+  box.replaceChildren(spinning ? el("span", { class: "spinner" }) : "", el("span", { text }));
+}
+
+function watchJob(id) {
+  clearInterval(pollTimer);
+  $("#result").classList.add("hidden");
+  const t0 = Date.now();
+  const tick = async () => {
+    let job;
+    try { job = await api(`/api/jobs/${id}`); } catch (err) { showStatus(`Error: ${err.message}`, false); clearInterval(pollTimer); setBusy(false); return; }
+    const secs = Math.round((Date.now() - t0) / 1000);
+    if (job.status === "queued" || job.status === "running") {
+      showStatus(`Scanning ${job.source} with ${job.profile} … ${secs}s`, true);
+      return;
+    }
+    clearInterval(pollTimer);
+    setBusy(false);
+    if (job.status === "error") { showStatus(`Scan failed: ${job.error}`, false); return; }
+    $("#job-status").classList.add("hidden");
+    renderReport(job);
+  };
+  pollTimer = setInterval(tick, 1500);
+  tick();
+}
+
+// ---- report ----
+function renderReport(job) {
+  const report = job.report;
+  const root = $("#result");
+  root.replaceChildren($("#tpl-result").content.cloneNode(true));
+  root.classList.remove("hidden");
+
+  const risk = report.risk_assessment || {};
+  $(".score-num", root).textContent = risk.score ?? "–";
+  const rec = $(".rec", root);
+  rec.textContent = (risk.recommendation || "").replaceAll("_", " ");
+  rec.classList.add(risk.recommendation || "");
+  const comp = report.analysis_completeness || {};
+  $(".meta", root).textContent =
+    `${job.source} · severity ${risk.severity || "?"} · highest finding ${risk.max_issue_severity || "none"} · ` +
+    `${comp.scanned_components ?? "?"}/${comp.total_components ?? "?"} files scanned · ${comp.status || ""}`;
+
+  const md = report.metadata || {};
+  const usage = md.inference_usage || [];
+  const models = [...new Set(usage.map((u) => `${u.provider}/${u.model}`))];
+  const tokens = usage.reduce((n, u) => n + (u.total_tokens || 0), 0);
+  $(".llm", root).textContent = md.llm_requested
+    ? (md.llm_available && usage.length
+        ? `LLM stage: ${models.join(", ")} · ${usage.length} calls · ${tokens.toLocaleString()} tokens`
+        : "LLM stage requested but NOT available: this report reflects static analysis only.")
+    : "LLM stage off (static rules only).";
+
+  const warnings = $(".warnings", root);
+  for (const w of report._ui_warnings || []) warnings.append(el("li", { text: w.replace(/^.*?(WARNING|ERROR)\s*/, "$1 ") }));
+
+  $(".eset", root).addEventListener("click", () => {
+    if (/^https?:\/\//.test(job.source)) navigator.clipboard?.writeText(job.source).catch(() => {});
+    window.open("https://www.eset.com/us/home/ai-skills-checker/", "_blank", "noopener");
+  });
+  $(".export", root).addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+    const a = el("a", { href: URL.createObjectURL(blob), download: `skill-report-${job.id}.json` });
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  const issues = (report.issues || []).slice().sort(
+    (a, b) => SEV_ORDER.indexOf(a.severity) - SEV_ORDER.indexOf(b.severity) || (b.confidence || 0) - (a.confidence || 0)
+  );
+  $(".count", root).textContent = `(${issues.length})`;
+  const active = new Set(SEV_ORDER);
+  const filters = $(".filters", root);
+  for (const sev of SEV_ORDER) {
+    const n = issues.filter((i) => i.severity === sev).length;
+    if (!n) continue;
+    const b = el("button", { class: "on", text: `${sev} ${n}` });
+    b.addEventListener("click", () => {
+      active.has(sev) ? active.delete(sev) : active.add(sev);
+      b.classList.toggle("on");
+      drawFindings();
+    });
+    filters.append(b);
+  }
+  function drawFindings() {
+    const list = $(".findings", root);
+    list.replaceChildren();
+    const shown = issues.filter((i) => active.has(i.severity));
+    if (!shown.length) { list.append(el("div", { class: "empty", text: issues.length ? "No findings match the filter." : "No findings." })); return; }
+    for (const i of shown) list.append(renderFinding(i));
+  }
+  drawFindings();
+}
+
+function renderFinding(i) {
+  const loc = i.location || {};
+  const where = loc.file ? `${loc.file}:${loc.start_line ?? "?"}${loc.end_line && loc.end_line !== loc.start_line ? "-" + loc.end_line : ""}` : "";
+  const body = el("div", { class: "fbody" });
+  const section = (title, text, pre = false) => {
+    if (!text) return;
+    body.append(el("h4", { text: title }), el(pre ? "pre" : "p", { text: String(text) }));
+  };
+  section("Category", [i.category, i.pattern].filter(Boolean).join(" · "));
+  section("Explanation", i.explanation);
+  section("Code", i.code_snippet, true);
+  if (i.evidence && typeof i.evidence === "object" && Object.keys(i.evidence).length) {
+    section("Evidence", JSON.stringify(i.evidence, null, 2), true);
+  }
+  section("Remediation", i.remediation);
+  section("Confidence", i.confidence != null ? `${Math.round(i.confidence * 100)}%` : "");
+  return el(
+    "details",
+    { class: "finding" },
+    el(
+      "summary",
+      {},
+      el("span", { class: `sev ${i.severity}`, text: i.severity }),
+      el("span", { class: "rule", text: i.id }),
+      el("span", { class: "ftitle", text: i.finding || i.pattern || "" }),
+      el("span", { class: "loc", text: where })
+    ),
+    body
+  );
+}
+
+// ---- GitHub search ----
+$("#search-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const q = $("#query").value.trim();
+  if (!q) return;
+  const out = $("#search-results");
+  out.replaceChildren(el("div", { class: "card" }, el("span", { class: "spinner" }), "Searching GitHub…"));
+  try {
+    const repos = await api(`/api/search?q=${encodeURIComponent(q)}`);
+    out.replaceChildren(renderRepos(repos));
+  } catch (err) {
+    out.replaceChildren(el("div", { class: "card", text: `Search failed: ${err.message}` }));
+  }
+});
+
+function renderRepos(repos) {
+  if (!repos.length) return el("div", { class: "card empty", text: "No repositories found." });
+  const tbody = el("tbody");
+  for (const r of repos) tbody.append(repoRow(r));
+  return el(
+    "div",
+    { class: "card table-wrap" },
+    el("table", {},
+      el("thead", {}, el("tr", {},
+        el("th", { text: "Trust" }), el("th", { text: "Repository" }),
+        el("th", { text: "Stars" }), el("th", { class: "hide-sm", text: "Forks" }),
+        el("th", { class: "hide-sm", text: "Issues" }), el("th", { text: "Age" }), el("th", { text: "" }))),
+      tbody)
+  );
+}
+
+function repoRow(r) {
+  const signals = el("ul", { class: "signals" }, ...r.signals.map((s) => el("li", { text: s })));
+  const contrib = r.contributors != null ? ` · ${r.contributors} contributors` : "";
+  const row = el("tr", {},
+    el("td", {}, el("span", { class: `trust ${r.level}`, text: `${r.score}` })),
+    el("td", {},
+      el("a", { href: r.html_url, target: "_blank", rel: "noopener noreferrer", text: r.full_name }),
+      el("div", { class: "desc", text: `${r.owner_type}${r.license ? " · " + r.license : ""}${contrib}` }),
+      el("div", { class: "desc", text: r.description }),
+      signals),
+    el("td", { class: "num", text: r.stars.toLocaleString() }),
+    el("td", { class: "num hide-sm", text: r.forks.toLocaleString() }),
+    el("td", { class: "num hide-sm", text: r.open_issues.toLocaleString() }),
+    el("td", { class: "num", text: r.age_days >= 365 ? `${(r.age_days / 365).toFixed(1)} y` : `${r.age_days} d` }),
+    el("td", {},
+      el("button", { text: "Details", onclick: async (e) => {
+        e.target.disabled = true;
+        try { row.replaceWith(repoRow(await api(`/api/repo/${r.full_name}`))); }
+        catch (err) { e.target.textContent = "failed"; }
+      } }),
+      " ",
+      el("button", { class: "primary", text: "Scan", onclick: () => {
+        $("#source").value = r.html_url; uploadFile = null; showTab("scan"); $("#scan-form").requestSubmit();
+      } }))
+  );
+  return row;
+}
+
+// ---- history ----
+async function loadHistory() {
+  const box = $("#history");
+  const jobs = await api("/api/jobs");
+  if (!jobs.length) { box.replaceChildren(el("div", { class: "empty", text: "No scans yet in this session." })); return; }
+  const tbody = el("tbody");
+  for (const j of jobs) {
+    tbody.append(el("tr", {},
+      el("td", { text: new Date(j.started * 1000).toLocaleTimeString() }),
+      el("td", { text: j.source }),
+      el("td", { text: j.profile }),
+      el("td", { text: j.status === "done" ? `${j.score} · ${(j.recommendation || "").replaceAll("_", " ")}` : j.status }),
+      el("td", {}, j.status === "done" ? el("button", { text: "Open", onclick: () => { showTab("scan"); watchJob(j.id); } }) : "")));
+  }
+  box.replaceChildren(el("div", { class: "table-wrap" }, el("table", {},
+    el("thead", {}, el("tr", {}, el("th", { text: "Time" }), el("th", { text: "Source" }), el("th", { text: "Model" }), el("th", { text: "Result" }), el("th", { text: "" }))),
+    tbody)));
+}
+
+loadProfiles().catch((err) => { $("#profile-hint").textContent = `Could not load profiles: ${err.message}`; });
