@@ -145,3 +145,21 @@ a { color: var(--accent); }
   .fbody { padding-left: 0; }
   .hide-sm { display: none; }
 }
+
+.reasons { margin: 10px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
+.reasons:empty { display: none; }
+.subtabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+.subtab { border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; background: none; color: var(--muted); }
+.subtab.active { color: var(--text); border-color: var(--border); background: var(--bg); }
+.kind, .risk { font-size: 12px; font-weight: 700; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border); white-space: nowrap; }
+.kind-invisible, .kind-tag-text, .kind-encoded, .risk-critical { color: var(--crit); border-color: var(--crit); }
+.kind-homoglyph, .kind-markup, .risk-high { color: var(--high); border-color: var(--high); }
+.kind-unreadable, .risk-medium { color: var(--med); border-color: var(--med); }
+.risk-low, .risk-none { color: var(--low); border-color: var(--low); }
+tr.risky td { background: color-mix(in srgb, var(--crit) 8%, transparent); }
+pre.revealed { max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.purpose { font-weight: 600; }
+.cov { font-size: 13px; margin: 4px 0; color: var(--low); }
+.cov.warn { color: var(--crit); font-weight: 600; }
+.rewrite-out { margin-top: 12px; }
+code { font-family: ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; }
