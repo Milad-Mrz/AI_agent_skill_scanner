@@ -710,7 +710,7 @@ function linkBlock(source, js, filter) {
   });
   const skillRows = [...skills.entries()]
     .filter(([sk]) => !filter || sk.toLowerCase().includes(filter) || source.toLowerCase().includes(filter))
-    .sort((a, b) => a[0].localeCompare(b[0]))
+    .sort((a, b) => (a[0].startsWith("(") - b[0].startsWith("(")) || a[0].localeCompare(b[0]))
     .map(([sk, runs]) => {
       const latest = new Map();
       for (const j of runs.filter((r) => r.status === "done").sort((a, b) => (a.finished || 0) - (b.finished || 0))) latest.set(j.label || j.operation, j);
