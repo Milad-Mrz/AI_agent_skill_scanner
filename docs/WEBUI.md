@@ -46,7 +46,14 @@ python -m skillspector.ext.webui     # http://127.0.0.1:8765  (localhost only)
 - **Export JSON:** downloads the full report.
 - **Search GitHub:** uses repository metadata only and computes a trust score (age, star growth, forks, issues, owner type, license, and contributors via "Details"). "Scan" sends a repository straight to the scanner.
 - **Pin this version** (on a finished scan) and the **Pins** tab: a pin stores the commit and a SHA-256 hash of every file (`~/.local/share/skill-scanner/pins/`). **Verify** fetches the source again and lists changed, added and removed files, which catches a skill that changes after review. The same works from the command line: `python -m skillspector.ext.pin pin|verify|list`.
-- **History:** every scan is saved to `~/.local/share/skill-scanner/scans/` (change it with `SKILLSPECTOR_UI_DATA`), so history survives restarts and crashes. Scans that were still running when the server stopped are shown as *interrupted*. Scans can be deleted.
+- **History:** grouped by link, across all runs.
+  - Each link lists its skills with the latest verdict of every method and the merged severity counts.
+  - **View all results** (or a click on one skill) opens a combined view, with:
+    - a card per method (score, verdict, date, link to the full report)
+    - one merged findings list, where each finding shows which methods found it
+    - the hidden content, instructions and sandbox run together
+  - Links can be filtered, or deleted with all their results.
+- **History (storage):** every scan is saved to `~/.local/share/skill-scanner/scans/` (change it with `SKILLSPECTOR_UI_DATA`), so history survives restarts and crashes. Scans that were still running when the server stopped are shown as *interrupted*. Scans can be deleted.
 
 ## Safety
 - The server binds to `127.0.0.1` only.
