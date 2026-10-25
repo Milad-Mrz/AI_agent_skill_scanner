@@ -11,6 +11,7 @@ repository's gitignored ``.env`` file.
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -47,7 +48,15 @@ def read_dotenv(path: Path) -> dict[str, str]:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, _, value = line.partition("=")
-        values[key.strip()] = value.strip().strip("'\"")
+        value = value.strip()
+        if value[:1] in {"'", '"'} and value[1:].find(value[0]) != -1:
+            value = value[1 : value.index(value[0], 1)]
+        else:
+            # Unquoted values may carry an inline comment ("VALUE   # note").
+            value = re.split(r"\s+#", value, maxsplit=1)[0].strip()
+            if value.startswith("#"):
+                value = ""
+        values[key.strip()] = value
     return values
 
 
