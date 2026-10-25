@@ -121,6 +121,36 @@ def combined_verdict(
     }
 
 
+def add_dynamic(result: dict, sandbox: dict) -> dict:
+    """Merge sandbox findings into a review result; the verdict can only go up."""
+    findings = sandbox.get("findings") or []
+    verdict = result["verdict"]
+    issues = [i for i in verdict["issues"] if not str(i.get("id", "")).startswith("DY-")]
+    issues += findings
+    score = verdict["score"]
+    reasons = [r for r in verdict["reasons"] if not r.startswith("sandbox:")]
+    if findings:
+        worst = max(
+            findings, key=lambda f: ["LOW", "MEDIUM", "HIGH", "CRITICAL"].index(f["severity"])
+        )
+        floor = {"CRITICAL": 81, "HIGH": 51, "MEDIUM": 21, "LOW": 0}[worst["severity"]]
+        score = max(score, floor)
+        reasons.append(f"sandbox: {len(findings)} dynamic finding(s), worst {worst['severity']}")
+    else:
+        reasons.append("sandbox: no harmful behaviour observed (does not prove the skill is safe)")
+    severity, recommendation = risk_severity_and_recommendation(score)
+    result["verdict"] = {
+        **verdict,
+        "score": score,
+        "severity": severity,
+        "recommendation": recommendation,
+        "reasons": reasons,
+        "issues": issues,
+    }
+    result["sandbox"] = sandbox
+    return result
+
+
 def review(source: str, *, use_llm: bool, strict: bool) -> dict:
     handler = InputHandler(allow_git_credentials=False)
     try:

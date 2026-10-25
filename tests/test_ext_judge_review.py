@@ -105,3 +105,15 @@ def test_static_review_end_to_end(tmp_path: Path) -> None:
     assert result["judge"] is None and result["explanation"] is None
     assert any(i["kind"] == "encoded" for f in result["reveal"] for i in f["items"])
     assert result["verdict"]["recommendation"] in {"CAUTION", "DO_NOT_INSTALL"}
+
+
+def test_dynamic_findings_raise_the_verdict() -> None:
+    result = {"verdict": {"score": 10, "reasons": ["upstream score 10 (SAFE)"], "issues": []}}
+    critical = {"id": "DY-1", "severity": "CRITICAL", "finding": "Secrets sent", "confidence": 0.95}
+    review_mod.add_dynamic(result, {"findings": [critical]})
+    assert result["verdict"]["recommendation"] == "DO_NOT_INSTALL"
+    assert result["verdict"]["issues"][-1]["id"] == "DY-1"
+    clean = {"verdict": {"score": 30, "reasons": [], "issues": []}}
+    review_mod.add_dynamic(clean, {"findings": []})
+    assert clean["verdict"]["score"] == 30  # a clean run never lowers the verdict
+    assert "does not prove" in clean["verdict"]["reasons"][-1]

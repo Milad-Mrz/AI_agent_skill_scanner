@@ -78,6 +78,7 @@
       <button class="btn eset">Check URL on ESET</button>
       <button class="btn export">Export JSON</button>
       <button class="btn pin">Pin this version</button>
+      <button class="btn sandbox" title="Run the skill with a real agent in an isolated Docker sandbox with fake secrets">Run in sandbox</button>
     </div>
     <div class="llm"></div>
     <ul class="warnings"></ul>
@@ -87,6 +88,7 @@
       <button class="subtab active" data-panel="findings">Findings <span class="count"></span></button>
       <button class="subtab" data-panel="hidden">Hidden content <span class="hidden-count"></span></button>
       <button class="subtab" data-panel="instructions">Instructions <span class="instr-count"></span></button>
+      <button class="subtab" data-panel="sandbox">Sandbox run</button>
     </div>
     <div class="subpanel" data-panel="findings">
       <div class="findings-head"><div class="filters"></div></div>
@@ -94,6 +96,7 @@
     </div>
     <div class="subpanel hidden" data-panel="hidden"><div class="hidden-list"></div></div>
     <div class="subpanel hidden" data-panel="instructions"><div class="instructions"></div></div>
+    <div class="subpanel hidden" data-panel="sandbox"><div class="sandbox-out"></div></div>
   </div>
 </template>
 

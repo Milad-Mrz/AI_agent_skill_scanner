@@ -206,6 +206,17 @@ function renderReport(job) {
     } catch (err) { pinButton.textContent = `Pin failed: ${err.message}`; pinButton.disabled = false; }
   });
 
+  const sandboxButton = $(".sandbox", root);
+  sandboxButton.addEventListener("click", async () => {
+    sandboxButton.disabled = true;
+    sandboxButton.textContent = "Running in sandbox… (1–3 min)";
+    try {
+      const updated = await api(`/api/jobs/${job.id}/sandbox`, { method: "POST" });
+      renderReport(updated);
+      $('#result .subtab[data-panel="sandbox"]').click();
+    } catch (err) { sandboxButton.textContent = `Sandbox failed: ${err.message}`; sandboxButton.disabled = false; }
+  });
+
   // sub-tabs
   root.querySelectorAll(".subtab").forEach((b) => b.addEventListener("click", () => {
     root.querySelectorAll(".subtab").forEach((x) => x.classList.toggle("active", x === b));
@@ -215,6 +226,26 @@ function renderReport(job) {
   renderFindings(root, verdict.issues || report.issues || []);
   renderHidden(root, review.reveal || []);
   renderInstructions(root, job, review);
+  renderSandbox(root, review.sandbox);
+}
+
+function renderSandbox(root, sandbox) {
+  const box = $(".sandbox-out", root);
+  if (!sandbox) {
+    box.append(el("p", { class: "hint", text: "Not run yet. 'Run in sandbox' starts a real agent with this skill installed in an isolated Docker container: no internet, fake SSH/AWS/.env secrets with unique canary values, every file read, command and network attempt recorded. LLM calls go through a host gateway that holds the real key." }));
+    return;
+  }
+  const e = sandbox.events || {};
+  box.append(el("p", { class: "llm", text: `Agent model ${e.model} · ${e.llm_calls} LLM calls · ${(e.llm_tokens || 0).toLocaleString()} tokens · ${e.seconds} s · runtime ${e.runtime}` }));
+  if (!sandbox.findings.length) box.append(el("p", { class: "cov", text: "No harmful behaviour observed in this run. This does not prove the skill is safe: skills can stay dormant, and the agent model may have refused." }));
+  for (const f of sandbox.findings) box.append(renderFinding(f));
+  for (const t of sandbox.transcripts || []) {
+    const steps = el("ol", {}, ...t.steps.map((s) => el("li", {}, el("code", { text: `${s.tool} ${JSON.stringify(s.args).slice(0, 300)}` }))));
+    box.append(el("details", { class: "finding" },
+      el("summary", {}, el("span", { class: "rule", text: "Task" }), el("span", { class: "ftitle", text: t.prompt })),
+      el("div", { class: "fbody" }, el("h4", { text: "Agent actions" }), steps,
+        el("h4", { text: "Agent's final answer" }), el("pre", { class: "revealed", text: t.final || t.error || "" }))));
+  }
 }
 
 function renderFindings(root, all) {
