@@ -27,3 +27,10 @@ models:
   "deepseek-v3:latest":
     context_length: 65536
     max_output_tokens: 8192
+  # Fork: Qwen2.5-Coder (ollama.com/library/qwen2.5-coder): 32K context.
+  "qwen2.5-coder:7b":
+    context_length: 32768
+    max_output_tokens: 8192
+  "qwen2.5-coder:14b":
+    context_length: 32768
+    max_output_tokens: 8192

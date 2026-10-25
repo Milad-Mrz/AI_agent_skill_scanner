@@ -6,7 +6,14 @@ from pathlib import Path
 
 import pytest
 
-from skillspector.ext.llm_profiles import profile_env, read_dotenv
+from skillspector.ext import llm_profiles
+from skillspector.ext.llm_profiles import (
+    PROFILE_LABELS,
+    PROFILES,
+    profile_env,
+    profile_ready,
+    read_dotenv,
+)
 
 
 def test_sol_medium_sets_provider_model_and_effort() -> None:
@@ -60,3 +67,24 @@ def test_dotenv_inline_comments_are_stripped(tmp_path: Path) -> None:
     )
     values = read_dotenv(dotenv)
     assert values == {"LEVEL": "WARNING", "EMPTY": "", "Q": "a # b"}
+
+
+def test_every_profile_has_a_label() -> None:
+    assert set(PROFILE_LABELS) == set(PROFILES)
+
+
+def test_local_profile_needs_no_key() -> None:
+    env = profile_env("local-qwen-coder-7b", base={})
+    assert env["SKILLSPECTOR_PROVIDER"] == "ollama"
+    assert env["SKILLSPECTOR_MODEL"] == "qwen2.5-coder:7b"
+
+
+def test_local_profile_ready_depends_on_pulled_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(llm_profiles, "ollama_models", lambda base_url=None: {"qwen2.5-coder:7b"})
+    assert profile_ready("local-qwen-coder-7b", {}) == (True, None)
+    assert profile_ready("local-qwen-coder-14b", {}) == (False, "ollama pull qwen2.5-coder:14b")
+
+
+def test_hosted_open_profile_needs_nvidia_key() -> None:
+    assert profile_ready("nv-deepseek", {}) == (False, "NVIDIA_INFERENCE_KEY")
+    assert profile_ready("nv-deepseek", {"NVIDIA_INFERENCE_KEY": "k"}) == (True, None)

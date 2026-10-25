@@ -39,11 +39,21 @@ async function loadProfiles() {
   profiles = await api("/api/profiles");
   const select = $("#profile");
   select.replaceChildren();
-  for (const p of profiles) {
-    const label = p.ready ? p.label : `${p.label} (needs ${p.key})`;
-    const opt = el("option", { value: p.id, text: label });
-    if (!p.ready) opt.disabled = true;
-    select.append(opt);
+  const groups = [
+    ["No LLM", (p) => p.id === "static"],
+    ["Hosted frontier models", (p) => ["anthropic", "openai"].includes(p.provider)],
+    ["Open-weight models (hosted)", (p) => p.provider === "nv_build"],
+    ["Open-weight models (local)", (p) => p.provider === "ollama"],
+  ];
+  for (const [title, match] of groups) {
+    const group = el("optgroup", { label: title });
+    for (const p of profiles.filter(match)) {
+      const label = p.ready ? p.label : `${p.label} (needs ${p.missing})`;
+      const opt = el("option", { value: p.id, text: label });
+      if (!p.ready) opt.disabled = true;
+      group.append(opt);
+    }
+    if (group.children.length) select.append(group);
   }
   const preferred = profiles.find((p) => p.id === "sol-medium" && p.ready) || profiles.find((p) => p.ready && p.id !== "static");
   if (preferred) select.value = preferred.id;
@@ -55,7 +65,9 @@ function updateHint() {
     ? ""
     : p.id === "static"
       ? "Static rules only: fast and free, but misses most wording-only and two-step attacks."
-      : `Static rules + ${p.label} (${p.model}) semantic review. Uses API credit.`;
+      : p.provider === "ollama"
+        ? `Static rules + ${p.label} (${p.model}) semantic review on this machine. Free, private, but much weaker than frontier models.`
+        : `Static rules + ${p.label} (${p.model}) semantic review. Uses API credit.`;
 }
 $("#profile").addEventListener("change", updateHint);
 
@@ -80,12 +92,13 @@ $("#scan-form").addEventListener("submit", async (e) => {
       const form = new FormData();
       form.append("file", uploadFile);
       form.append("profile", profile);
+      form.append("strict", $("#strict").checked ? "true" : "false");
       job = await api("/api/scan/upload", { method: "POST", body: form });
     } else {
       job = await api("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source, profile }),
+        body: JSON.stringify({ source, profile, strict: $("#strict").checked }),
       });
     }
     watchJob(job.id);
@@ -117,7 +130,7 @@ function watchJob(id) {
     }
     clearInterval(pollTimer);
     setBusy(false);
-    if (job.status === "error") { showStatus(`Scan failed: ${job.error}`, false); return; }
+    if (job.status === "error" || job.status === "interrupted") { showStatus(`Scan ${job.status}: ${job.error}`, false); return; }
     $("#job-status").classList.add("hidden");
     renderReport(job);
   };
@@ -139,7 +152,7 @@ function renderReport(job) {
   rec.classList.add(risk.recommendation || "");
   const comp = report.analysis_completeness || {};
   $(".meta", root).textContent =
-    `${job.source} · severity ${risk.severity || "?"} · highest finding ${risk.max_issue_severity || "none"} · ` +
+    `${job.source} · ${job.strict ? "strict verdict" : "upstream verdict"} · severity ${risk.severity || "?"} · highest finding ${risk.max_issue_severity || "none"} · ` +
     `${comp.scanned_components ?? "?"}/${comp.total_components ?? "?"} files scanned · ${comp.status || ""}`;
 
   const md = report.metadata || {};
@@ -287,15 +300,18 @@ function repoRow(r) {
 async function loadHistory() {
   const box = $("#history");
   const jobs = await api("/api/jobs");
-  if (!jobs.length) { box.replaceChildren(el("div", { class: "empty", text: "No scans yet in this session." })); return; }
+  if (!jobs.length) { box.replaceChildren(el("div", { class: "empty", text: "No scans yet." })); return; }
   const tbody = el("tbody");
   for (const j of jobs) {
     tbody.append(el("tr", {},
-      el("td", { text: new Date(j.started * 1000).toLocaleTimeString() }),
+      el("td", { text: new Date(j.started * 1000).toLocaleString() }),
       el("td", { text: j.source }),
-      el("td", { text: j.profile }),
+      el("td", { text: j.profile + (j.strict ? " · strict" : "") }),
       el("td", { text: j.status === "done" ? `${j.score} · ${(j.recommendation || "").replaceAll("_", " ")}` : j.status }),
-      el("td", {}, j.status === "done" ? el("button", { text: "Open", onclick: () => { showTab("scan"); watchJob(j.id); } }) : "")));
+      el("td", {},
+        j.status === "done" ? el("button", { text: "Open", onclick: () => { showTab("scan"); watchJob(j.id); } }) : "",
+        " ",
+        el("button", { text: "Delete", onclick: async () => { await api(`/api/jobs/${j.id}`, { method: "DELETE" }); loadHistory(); } }))));
   }
   box.replaceChildren(el("div", { class: "table-wrap" }, el("table", {},
     el("thead", {}, el("tr", {}, el("th", { text: "Time" }), el("th", { text: "Source" }), el("th", { text: "Model" }), el("th", { text: "Result" }), el("th", { text: "" }))),

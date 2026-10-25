@@ -29,7 +29,13 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from skillspector.ext import github_search
-from skillspector.ext.llm_profiles import PROFILES, REQUIRED_KEY, profile_env, read_dotenv
+from skillspector.ext.llm_profiles import (
+    PROFILE_LABELS,
+    PROFILES,
+    profile_env,
+    profile_ready,
+    read_dotenv,
+)
 
 STATIC_DIR = Path(__file__).parent / "static"
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -37,6 +43,13 @@ DOTENV = Path(os.environ.get("SKILLSPECTOR_UI_DOTENV", REPO_ROOT / ".env"))
 SCAN_TIMEOUT_SECONDS = 900
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 STATIC_PROFILE = "static"
+# Scan history survives server restarts and crashes.
+DATA_DIR = Path(
+    os.environ.get(
+        "SKILLSPECTOR_UI_DATA",
+        Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "skill-scanner",
+    )
+)
 
 
 @dataclass
@@ -44,7 +57,8 @@ class Job:
     id: str
     source: str
     profile: str
-    status: str = "queued"  # queued | running | done | error
+    strict: bool = True
+    status: str = "queued"  # queued | running | done | error | interrupted
     started: float = field(default_factory=time.time)
     finished: float | None = None
     report: dict | None = None
@@ -52,34 +66,72 @@ class Job:
     cleanup: Path | None = None
 
     def summary(self) -> dict:
+        risk = (self.report or {}).get("risk_assessment", {})
         return {
             "id": self.id,
             "source": self.source,
             "profile": self.profile,
+            "strict": self.strict,
             "status": self.status,
             "started": self.started,
             "finished": self.finished,
             "error": self.error,
-            "score": (self.report or {}).get("risk_assessment", {}).get("score"),
-            "recommendation": (self.report or {}).get("risk_assessment", {}).get("recommendation"),
+            "score": risk.get("score"),
+            "recommendation": risk.get("recommendation"),
         }
 
 
 _jobs: dict[str, Job] = {}
 _lock = threading.Lock()
 _executor = ThreadPoolExecutor(max_workers=2)
+_PERSISTED_FIELDS = ("id", "source", "profile", "strict", "status", "started", "finished", "error")
 
 app = FastAPI(title="Skill Scanner", docs_url="/api/docs", redoc_url=None)
 
 
-def _scan_env(profile: str) -> dict[str, str]:
-    if profile == STATIC_PROFILE:
-        return dict(os.environ)
-    return profile_env(profile, dotenv=DOTENV)
+def _job_path(job_id: str) -> Path:
+    return DATA_DIR / "scans" / f"{job_id}.json"
+
+
+def _save(job: Job) -> None:
+    """Write the job (and its report, when present) atomically to the history directory."""
+    path = _job_path(job.id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    record = {name: getattr(job, name) for name in _PERSISTED_FIELDS}
+    record["report"] = job.report
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(record), encoding="utf-8")
+    tmp.replace(path)
+
+
+def load_history() -> None:
+    """Load saved scans; jobs that were queued or running when the server stopped are marked."""
+    folder = DATA_DIR / "scans"
+    if not folder.is_dir():
+        return
+    for path in folder.glob("*.json"):
+        try:
+            record = json.loads(path.read_text(encoding="utf-8"))
+            job = Job(**{name: record[name] for name in _PERSISTED_FIELDS if name in record})
+        except (OSError, ValueError, TypeError, KeyError):
+            continue
+        job.report = record.get("report")
+        if job.status in {"queued", "running"}:
+            job.status = "interrupted"
+            job.error = "The server stopped before this scan finished. Run it again."
+            _save(job)
+        _jobs[job.id] = job
+
+
+def _scan_env(profile: str, strict: bool) -> dict[str, str]:
+    env = dict(os.environ) if profile == STATIC_PROFILE else profile_env(profile, dotenv=DOTENV)
+    env["SKILLSPECTOR_STRICT"] = "1" if strict else ""
+    return env
 
 
 def _run_scan(job: Job, target: str) -> None:
     job.status = "running"
+    _save(job)
     workdir = Path(tempfile.mkdtemp(prefix="skillui-"))
     report_path = workdir / "report.json"
     cmd = ["skillspector", "scan", target, "--format", "json", "--output", str(report_path)]
@@ -88,7 +140,7 @@ def _run_scan(job: Job, target: str) -> None:
     try:
         result = subprocess.run(
             cmd,
-            env=_scan_env(job.profile),
+            env=_scan_env(job.profile, job.strict),
             capture_output=True,
             text=True,
             timeout=SCAN_TIMEOUT_SECONDS,
@@ -109,12 +161,15 @@ def _run_scan(job: Job, target: str) -> None:
         job.status = "error"
     finally:
         job.finished = time.time()
+        _save(job)
         shutil.rmtree(workdir, ignore_errors=True)
         if job.cleanup:
             shutil.rmtree(job.cleanup, ignore_errors=True)
 
 
-def _submit(source: str, target: str, profile: str, cleanup: Path | None = None) -> Job:
+def _submit(
+    source: str, target: str, profile: str, strict: bool = True, cleanup: Path | None = None
+) -> Job:
     if profile != STATIC_PROFILE and profile not in PROFILES:
         raise HTTPException(400, f"unknown profile {profile!r}")
     if profile != STATIC_PROFILE:
@@ -122,9 +177,12 @@ def _submit(source: str, target: str, profile: str, cleanup: Path | None = None)
             profile_env(profile, dotenv=DOTENV)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
-    job = Job(id=uuid.uuid4().hex[:12], source=source, profile=profile, cleanup=cleanup)
+    job = Job(
+        id=uuid.uuid4().hex[:12], source=source, profile=profile, strict=strict, cleanup=cleanup
+    )
     with _lock:
         _jobs[job.id] = job
+    _save(job)
     _executor.submit(_run_scan, job, target)
     return job
 
@@ -132,6 +190,7 @@ def _submit(source: str, target: str, profile: str, cleanup: Path | None = None)
 class ScanRequest(BaseModel):
     source: str = Field(..., description="Git/HTTPS URL or local path to a skill")
     profile: str = STATIC_PROFILE
+    strict: bool = True
 
 
 @app.get("/")
@@ -144,15 +203,16 @@ def profiles() -> list[dict]:
     """List scan profiles and whether their API key is configured (never the key itself)."""
     env = {**read_dotenv(DOTENV), **os.environ}
     items = [{"id": STATIC_PROFILE, "label": "Static only (no LLM)", "ready": True}]
-    labels = {"sonnet": "Claude Sonnet 5.5", "sol-medium": "GPT-6.1 Sol (medium effort)"}
     for name in PROFILES:
+        ready, missing = profile_ready(name, env)
         items.append(
             {
                 "id": name,
-                "label": labels.get(name, name),
+                "label": PROFILE_LABELS.get(name, name),
                 "model": PROFILES[name]["SKILLSPECTOR_MODEL"],
-                "ready": bool(env.get(REQUIRED_KEY[name])),
-                "key": REQUIRED_KEY[name],
+                "provider": PROFILES[name]["SKILLSPECTOR_PROVIDER"],
+                "ready": ready,
+                "missing": missing,
             }
         )
     return items
@@ -165,13 +225,14 @@ def scan(request: ScanRequest) -> dict:
         raise HTTPException(400, "source is required")
     if not source.startswith(("https://", "http://", "git@")) and not Path(source).exists():
         raise HTTPException(400, "source must be a URL or an existing local path")
-    return _submit(source, source, request.profile).summary()
+    return _submit(source, source, request.profile, strict=request.strict).summary()
 
 
 @app.post("/api/scan/upload")
 async def scan_upload(
     file: Annotated[UploadFile, File()],
     profile: Annotated[str, Form()] = STATIC_PROFILE,
+    strict: Annotated[bool, Form()] = True,
 ) -> dict:
     name = Path(file.filename or "skill.zip").name
     if not name.lower().endswith((".zip", ".md")):
@@ -183,7 +244,9 @@ async def scan_upload(
     target = upload_dir / name
     target.write_bytes(data)
     try:
-        return _submit(f"upload: {name}", str(target), profile, cleanup=upload_dir).summary()
+        return _submit(
+            f"upload: {name}", str(target), profile, strict=strict, cleanup=upload_dir
+        ).summary()
     except HTTPException:
         shutil.rmtree(upload_dir, ignore_errors=True)
         raise
@@ -201,6 +264,16 @@ def job(job_id: str) -> dict:
     if not found:
         raise HTTPException(404, "unknown job")
     return {**found.summary(), "report": found.report}
+
+
+@app.delete("/api/jobs/{job_id}")
+def delete_job(job_id: str) -> dict:
+    with _lock:
+        found = _jobs.pop(job_id, None)
+    if not found:
+        raise HTTPException(404, "unknown job")
+    _job_path(job_id).unlink(missing_ok=True)
+    return {"deleted": job_id}
 
 
 @app.get("/api/search")
@@ -221,4 +294,5 @@ def repo(owner: str, name: str) -> dict:
         raise HTTPException(502, f"GitHub lookup failed: {exc}") from exc
 
 
+load_history()
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
