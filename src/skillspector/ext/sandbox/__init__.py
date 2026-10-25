@@ -163,6 +163,8 @@ def _upstream(profile: str, env: dict[str, str]) -> tuple[str, str | None, dict]
         return base, env.get("OPENAI_API_KEY"), {}
     if provider == "nv_build":
         return "https://integrate.api.nvidia.com/v1", env.get("NVIDIA_INFERENCE_KEY"), {}
+    if provider == "anthropic":
+        return "https://api.anthropic.com/v1", env.get("ANTHROPIC_API_KEY"), {}
     raise ValueError(
         f"profile {profile!r} uses provider {provider!r}, which the sandbox gateway "
         "does not support yet (use an OpenAI-compatible profile)"
@@ -388,7 +390,8 @@ def run_sandbox(
             gateway_ip,
             network,
         )
-        responses_api = bool(profile) and PROFILES[profile]["SKILLSPECTOR_PROVIDER"] == "openai"
+        provider = PROFILES[profile]["SKILLSPECTOR_PROVIDER"] if profile else None
+        api_style = {"openai": "responses", "anthropic": "anthropic"}.get(provider or "", "chat")
         config = GatewayConfig(
             upstream,
             real_key,
@@ -396,7 +399,7 @@ def run_sandbox(
             model,
             canaries,
             extra_body=extra,
-            api_style="responses" if responses_api else "chat",
+            api_style=api_style,
             reasoning_effort=PROFILES[profile].get("SKILLSPECTOR_REASONING_EFFORT")
             if profile
             else None,
@@ -448,6 +451,7 @@ def run_sandbox(
             _docker("cp", f"{container}:/work/out/.", str(tmp / "out"), check=False)
             events = list(gateway.state.events)
             llm_calls, llm_tokens = gateway.state.llm_calls, gateway.state.llm_tokens
+            input_tokens, output_tokens = gateway.state.input_tokens, gateway.state.output_tokens
         strace = (
             (tmp / "out" / "strace.log").read_text(errors="replace")
             if (tmp / "out" / "strace.log").is_file()
@@ -463,6 +467,8 @@ def run_sandbox(
             "exit_code": run.returncode,
             "llm_calls": llm_calls,
             "llm_tokens": llm_tokens,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
             "gateway_events": events[-200:],
             "model": model,
             "runtime": "docker",

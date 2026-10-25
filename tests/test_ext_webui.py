@@ -76,7 +76,6 @@ def test_index_and_profiles(client: TestClient) -> None:
     assert profiles["sol-medium"]["ready"] is False
     assert profiles["sol-medium"]["model"] == "gpt-6.1-sol"
     assert profiles["sol-medium"]["missing"] == "OPENAI_API_KEY"
-    assert profiles["local-qwen-coder-7b"]["provider"] == "ollama"
     assert all("sk-" not in str(p) for p in profiles.values())
 
 

@@ -181,3 +181,53 @@ def test_scripted_agent_running_hidden_script_is_caught() -> None:
     ids = {f["id"] for f in result.findings}
     assert {"DY-1", "DY-2", "DY-6"} <= ids, result.findings
     assert "DY-7" not in ids  # the leak happened before any fetched content was read
+
+
+def test_anthropic_translation_round_trip() -> None:
+    from skillspector.ext.sandbox.gateway import anthropic_to_chat, chat_to_anthropic
+
+    chat = {
+        "messages": [
+            {"role": "system", "content": "be careful"},
+            {"role": "user", "content": "hi"},
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": "t1",
+                        "type": "function",
+                        "function": {"name": "bash", "arguments": '{"command": "ls"}'},
+                    },
+                    {
+                        "id": "t2",
+                        "type": "function",
+                        "function": {"name": "bash", "arguments": "{}"},
+                    },
+                ],
+            },
+            {"role": "tool", "tool_call_id": "t1", "content": "a"},
+            {"role": "tool", "tool_call_id": "t2", "content": "b"},
+        ],
+        "tools": [
+            {"type": "function", "function": {"name": "bash", "parameters": {"type": "object"}}}
+        ],
+    }
+    request = chat_to_anthropic(chat, "claude-sonnet-5-5")
+    assert request["system"] == "be careful"
+    assert [m["role"] for m in request["messages"]] == ["user", "assistant", "user"]
+    assert [b["type"] for b in request["messages"][2]["content"]] == ["tool_result", "tool_result"]
+    assert request["messages"][1]["content"][0]["input"] == {"command": "ls"}
+    assert request["tools"][0]["input_schema"] == {"type": "object"}
+    reply = anthropic_to_chat(
+        {
+            "content": [
+                {"type": "tool_use", "id": "t3", "name": "read_file", "input": {"path": "x"}}
+            ],
+            "usage": {"input_tokens": 5, "output_tokens": 2},
+        }
+    )
+    assert reply["choices"][0]["message"]["tool_calls"][0]["function"]["name"] == "read_file"
+    assert reply["usage"] == {"prompt_tokens": 5, "completion_tokens": 2, "total_tokens": 7}
+    refusal = anthropic_to_chat({"content": [], "stop_reason": "refusal"})
+    assert "refusal" in refusal["choices"][0]["message"]["content"]
