@@ -1,0 +1,462 @@
+{
+ "summary": {
+  "cases": 18,
+  "errors": 0,
+  "verdicts": {
+   "DO_NOT_INSTALL": 14,
+   "CAUTION": 4
+  },
+  "upstream_verdicts": {
+   "DO_NOT_INSTALL": 9,
+   "CAUTION": 9
+  },
+  "gdr": 94.4,
+  "idr": 88.9,
+  "idr_upstream": 88.9,
+  "idr_static": 38.9,
+  "idr_fork_rules": 5.6,
+  "idr_judge": 61.1,
+  "by_threat": {
+   "arbitrary_script_execution": {
+    "n": 2,
+    "idr": 100.0,
+    "blocked": 1
+   },
+   "credential_exposure": {
+    "n": 2,
+    "idr": 50.0,
+    "blocked": 1
+   },
+   "data_exfiltration": {
+    "n": 2,
+    "idr": 100.0,
+    "blocked": 2
+   },
+   "guardfall": {
+    "n": 2,
+    "idr": 100.0,
+    "blocked": 2
+   },
+   "indirect_injection": {
+    "n": 2,
+    "idr": 100.0,
+    "blocked": 2
+   },
+   "privilege_escalation": {
+    "n": 2,
+    "idr": 100.0,
+    "blocked": 2
+   },
+   "prompt_hijacking": {
+    "n": 2,
+    "idr": 100.0,
+    "blocked": 2
+   },
+   "resource_exhaustion": {
+    "n": 2,
+    "idr": 100.0,
+    "blocked": 1
+   },
+   "supply_chain": {
+    "n": 2,
+    "idr": 50.0,
+    "blocked": 1
+   }
+  },
+  "profile": "sol-medium",
+  "seconds": 1243
+ },
+ "rows": [
+  {
+   "id": "case_00054__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    23
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": true,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "BJ-1",
+    "RA2",
+    "SC2",
+    "SDI-2",
+    "SQP-2",
+    "TM2"
+   ],
+   "score": 100,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_00054__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    3,
+    4,
+    5
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": false,
+   "idr_judge": true,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "BJ-1",
+    "SDI-1"
+   ],
+   "score": 73,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00054__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "E1",
+    "SDI-1",
+    "SQP-2",
+    "SSD-1"
+   ],
+   "score": 100,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_00054__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    92
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": true,
+   "idr_fork_rules": true,
+   "idr_upstream": true,
+   "hit_rules": [
+    "BJ-1",
+    "FG5",
+    "SDI-2",
+    "SQP-2",
+    "SSD-1"
+   ],
+   "score": 100,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_00054__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    5
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": false,
+   "idr_judge": true,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "BJ-1",
+    "SQP-2",
+    "SSD-1"
+   ],
+   "score": 100,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_00054__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    117
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2",
+    "SDI-2",
+    "SQP-2",
+    "SSD-1"
+   ],
+   "score": 61,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_00054__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    76,
+    77,
+    78,
+    79
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "EA2",
+    "SQP-2"
+   ],
+   "score": 53,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00054__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    91
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "SQP-2"
+   ],
+   "score": 60,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00054__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    24
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 36,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00224__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    55
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "SDI-2"
+   ],
+   "score": 9,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00224__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    3
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00224__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    34
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": false,
+   "idr_judge": true,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "BJ-1",
+    "SDI-1"
+   ],
+   "score": 51,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00224__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    352,
+    353
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": true,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "BJ-1",
+    "E3",
+    "SSD-1"
+   ],
+   "score": 59,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00224__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": false,
+   "idr_judge": true,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "BJ-1",
+    "SQP-2",
+    "SSD-1"
+   ],
+   "score": 100,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_00224__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    68
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": true,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "BJ-1",
+    "PE2",
+    "SDI-2",
+    "SQP-2",
+    "SSD-1"
+   ],
+   "score": 100,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_00224__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    319
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": false,
+   "idr_judge": true,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "BJ-1",
+    "SDI-1",
+    "SQP-2",
+    "SSD-1"
+   ],
+   "score": 94,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_00224__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    354,
+    355,
+    356
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": false,
+   "idr_judge": true,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "BJ-1",
+    "SDI-2",
+    "SQP-2"
+   ],
+   "score": 37,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00224__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    105
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": false,
+   "idr_judge": true,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "BJ-1",
+    "SDI-2",
+    "SQP-2",
+    "SSD-1"
+   ],
+   "score": 93,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  }
+ ]
+}
