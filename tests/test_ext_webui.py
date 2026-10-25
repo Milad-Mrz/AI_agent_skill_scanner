@@ -246,3 +246,45 @@ def test_cancel_queued_task(client: TestClient) -> None:
     job = webui.Job(id="c1", source="x", profile="static", status="queued")
     webui._jobs["c1"] = job
     assert client.post("/api/jobs/c1/cancel").json()["status"] == "cancelled"
+
+
+def test_stop_all_and_delete_batch(client: TestClient) -> None:
+    for i, status in enumerate(["queued", "queued", "done"]):
+        webui._jobs[f"s{i}"] = webui.Job(
+            id=f"s{i}",
+            source="x",
+            profile="static",
+            status=status,
+            batch_id="b1",
+            repo_id="r",
+            skill=f"k{i % 2}",
+        )
+    assert client.post("/api/stop-all").json()["stopped"] == 2
+    assert client.get("/api/jobs/s0").json()["status"] == "cancelled"
+    assert (
+        client.delete("/api/batches/b1", params={"repo_id": "r", "skill": "k0"}).json()["deleted"]
+        == 2
+    )
+    assert client.delete("/api/batches/b1").json()["deleted"] == 1
+    assert client.get("/api/jobs/s1").status_code == 404
+
+
+def test_summary_carries_issue_keys(client: TestClient) -> None:
+    report = {
+        "verdict": {
+            "score": 30,
+            "recommendation": "CAUTION",
+            "issues": [
+                {
+                    "id": "P1",
+                    "severity": "HIGH",
+                    "finding": "Ignore",
+                    "location": {"file": "SKILL.md", "start_line": 3},
+                }
+            ],
+        }
+    }
+    webui._jobs["k1"] = webui.Job(
+        id="k1", source="x", profile="static", status="done", report=report
+    )
+    assert client.get("/api/jobs/k1").json()["issues"] == [["P1", "HIGH", "SKILL.md", 3, "Ignore"]]

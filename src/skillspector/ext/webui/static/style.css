@@ -222,3 +222,27 @@ details.batch > summary { display: flex; gap: 10px; align-items: center; flex-wr
   .task { grid-template-columns: 1fr auto; }
   .stages { grid-column: 1 / -1; }
 }
+
+/* ---- runs grouped by item ---- */
+.item-list { border-top: 1px solid var(--border); }
+.item { border-bottom: 1px solid var(--border); }
+.item:last-child { border-bottom: none; }
+.item-head { display: grid; grid-template-columns: minmax(160px, 1.6fr) minmax(120px, 2fr) auto auto auto; gap: 8px 12px;
+  align-items: center; padding: 10px 12px; background: var(--tile-bg); }
+.task.sub { grid-template-columns: minmax(120px, 0.9fr) minmax(180px, 2fr) 70px auto auto; padding-left: 28px; }
+.sev-counts { display: flex; flex-wrap: wrap; gap: 4px; }
+.sev-mini { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; color: var(--sev-text); }
+.sev-mini.CRITICAL { background: var(--crit); } .sev-mini.HIGH { background: var(--high); }
+.sev-mini.MEDIUM { background: var(--med); } .sev-mini.LOW { background: var(--low); } .sev-mini.INFO { background: var(--info); }
+.merged { padding: 0 12px 10px 28px; }
+.merged table { font-size: 12px; }
+button.danger { padding: 3px 10px; font-size: 12px; color: var(--crit); border-color: var(--crit); background: none; }
+button.icon-btn { padding: 0 8px; font-size: 16px; line-height: 22px; color: var(--muted); }
+button.icon-btn:hover { color: var(--crit); border-color: var(--crit); }
+@media (max-width: 760px) {
+  .item-head { grid-template-columns: 1fr auto; }
+  .task.sub { grid-template-columns: 1fr auto; padding-left: 12px; }
+}
+
+.batch-actions { margin-left: auto; display: flex; gap: 6px; }
+.runs-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
