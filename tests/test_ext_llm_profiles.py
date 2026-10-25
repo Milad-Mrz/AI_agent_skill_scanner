@@ -50,3 +50,13 @@ def test_key_from_dotenv_and_process_env_wins(tmp_path: Path) -> None:
     assert profile_env("sol-medium", base={}, dotenv=dotenv)["OPENAI_API_KEY"] == "from-file"
     env = profile_env("sol-medium", base={"OPENAI_API_KEY": "from-env"}, dotenv=dotenv)
     assert env["OPENAI_API_KEY"] == "from-env"
+
+
+def test_dotenv_inline_comments_are_stripped(tmp_path: Path) -> None:
+    dotenv = tmp_path / ".env"
+    dotenv.write_text(
+        "LEVEL=WARNING      # options: DEBUG|INFO\nEMPTY=      # leave empty\nQ='a # b'\n",
+        encoding="utf-8",
+    )
+    values = read_dotenv(dotenv)
+    assert values == {"LEVEL": "WARNING", "EMPTY": "", "Q": "a # b"}
