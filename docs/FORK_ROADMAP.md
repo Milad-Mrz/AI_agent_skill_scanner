@@ -62,14 +62,14 @@ Each item: first check what upstream already covers, then add only what's missin
 - `skillspector explain <skill>`: the model, with no tools, turns every instruction into `{source, plain_english, category, risk}`. A code check then confirms every line is covered: uncovered lines are flagged in red, and disagreements with the static findings are highlighted.
 - `skillspector rewrite <skill> --approve items.json`: builds a clean `SKILL.md` from the approved items, placing safety steps on the path the agent actually follows. Scripts are left untouched.
 
-### 3.5 UI (`ui/`)
+### 3.5 UI (done: `feat/ui`, `src/skillspector/ext/webui/`)
 - Input: GitHub search (with trust score), a URL or a zip upload.
 - Live progress from `graph.stream`.
 - Findings table: file, line, severity, rule, escaped code with context, decoded values.
 - The reveal and explain views, and an "Open in ESET" button where the user records ESET's verdict.
 - Export to JSON, SARIF or HTML.
 
-### 3.6 Pin and rescan
+### 3.6 Pin and rescan (done: `feat/pin-rescan`, `ext/pin.py`, Pins tab)
 `skillspector pin` stores the commit and content hashes. `skillspector verify` rescans and compares against the pinned version, so a skill that changes after review is caught. Reuse the baseline and fingerprint code in `suppression.py`.
 
 ### 3.7 Sandbox (`sandbox/`): a separate project

@@ -31,6 +31,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from skillspector.ext import github_search
+from skillspector.ext import pin as pins
 from skillspector.ext.llm_profiles import (
     PROFILE_LABELS,
     PROFILES,
@@ -313,6 +314,43 @@ def rewrite_job(job_id: str, request: RewriteRequest) -> dict:
     found.report["rewrite"] = rewritten
     _save(found)
     return rewritten
+
+
+@app.post("/api/jobs/{job_id}/pin")
+def pin_job(job_id: str) -> dict:
+    """Pin the exact files of a finished scan's source, with its verdict."""
+    found = _jobs.get(job_id)
+    if not found or found.status != "done" or not found.report:
+        raise HTTPException(404, "no finished scan with that id")
+    if found.source.startswith("upload: "):
+        raise HTTPException(400, "uploads cannot be re-fetched; pin a URL or local path")
+    verdict = found.report.get("verdict") or found.report.get("risk_assessment") or {}
+    try:
+        record = pins.pin(
+            found.source,
+            verdict={k: verdict.get(k) for k in ("score", "recommendation")},
+        )
+    except (OSError, ValueError, RuntimeError) as exc:
+        raise HTTPException(502, f"pin failed: {exc}") from exc
+    return {**record.to_dict(), "file_count": len(record.files)}
+
+
+@app.get("/api/pins")
+def list_pins() -> list[dict]:
+    return [
+        {**{k: v for k, v in p.to_dict().items() if k != "files"}, "file_count": len(p.files)}
+        for p in pins.list_pins()
+    ]
+
+
+@app.post("/api/pins/{name}/verify")
+def verify_pin(name: str) -> dict:
+    try:
+        return pins.verify(name).to_dict()
+    except FileNotFoundError as exc:
+        raise HTTPException(404, "unknown pin") from exc
+    except (OSError, ValueError, RuntimeError) as exc:
+        raise HTTPException(502, f"verify failed: {exc}") from exc
 
 
 @app.delete("/api/jobs/{job_id}")
