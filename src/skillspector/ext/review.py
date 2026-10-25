@@ -34,6 +34,14 @@ from skillspector.models import Finding
 from skillspector.nodes.report import risk_severity_and_recommendation
 
 SCAN_TIMEOUT_SECONDS = 900
+_RANK = {"SAFE": 0, "CAUTION": 1, "DO_NOT_INSTALL": 2}
+
+
+def _at_least(recommendation: str, minimum: str | None) -> str:
+    """Never report a weaker recommendation than ``minimum`` (e.g. upstream fail-closed CAUTION)."""
+    if minimum in _RANK and _RANK[minimum] > _RANK.get(recommendation, 0):
+        return minimum  # type: ignore[return-value]
+    return recommendation
 
 
 def _upstream_scan(path: Path, use_llm: bool) -> tuple[dict, list[str]]:
@@ -111,6 +119,13 @@ def combined_verdict(
 
     score = max(score, floor)
     severity, recommendation = risk_severity_and_recommendation(score)
+    upstream_recommendation = upstream.get("recommendation")
+    if _at_least(recommendation, upstream_recommendation) != recommendation:
+        recommendation = upstream_recommendation
+        reasons.append(
+            f"upstream keeps {upstream_recommendation} "
+            f"(analysis {report.get('analysis_completeness', {}).get('status', 'incomplete')})"
+        )
     return {
         "score": score,
         "severity": severity,
@@ -139,6 +154,7 @@ def add_dynamic(result: dict, sandbox: dict) -> dict:
     else:
         reasons.append("sandbox: no harmful behaviour observed (does not prove the skill is safe)")
     severity, recommendation = risk_severity_and_recommendation(score)
+    recommendation = _at_least(recommendation, verdict.get("recommendation"))
     result["verdict"] = {
         **verdict,
         "score": score,
