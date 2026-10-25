@@ -44,14 +44,15 @@ def _at_least(recommendation: str, minimum: str | None) -> str:
     return recommendation
 
 
-def _upstream_scan(path: Path, use_llm: bool) -> tuple[dict, list[str]]:
+def _upstream_scan(path: Path, use_llm: bool, strict: bool) -> tuple[dict, list[str]]:
     with tempfile.TemporaryDirectory(prefix="review-scan-") as tmp:
         out = Path(tmp) / "report.json"
         cmd = ["skillspector", "scan", str(path), "--format", "json", "--output", str(out)]
         if not use_llm:
             cmd.append("--no-llm")
+        env = {**os.environ, "SKILLSPECTOR_STRICT": "1" if strict else ""}
         result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=SCAN_TIMEOUT_SECONDS, check=False
+            cmd, capture_output=True, text=True, timeout=SCAN_TIMEOUT_SECONDS, check=False, env=env
         )
         if not out.is_file():
             raise RuntimeError(
@@ -171,7 +172,7 @@ def review(source: str, *, use_llm: bool, strict: bool) -> dict:
     handler = InputHandler(allow_git_credentials=False)
     try:
         path, source_type = handler.resolve(source)
-        report, warnings = _upstream_scan(path, use_llm)
+        report, warnings = _upstream_scan(path, use_llm, strict)
         revealed = reveal_skill(path)
         raw_text = {}
         for item in revealed:
@@ -217,7 +218,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-llm", action="store_true")
     parser.add_argument("--no-strict", action="store_true")
     args = parser.parse_args(argv)
-    os.environ["SKILLSPECTOR_STRICT"] = "" if args.no_strict else "1"
     result = review(args.source, use_llm=not args.no_llm, strict=not args.no_strict)
     args.out.write_text(json.dumps(result), encoding="utf-8")
     return 0
