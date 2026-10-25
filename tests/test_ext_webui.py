@@ -60,6 +60,7 @@ def test_star_spike_on_young_repo_scores_low() -> None:
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(webui, "DOTENV", tmp_path / "missing.env")
+    monkeypatch.setattr(webui, "DATA_DIR", tmp_path / "data")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     webui._jobs.clear()
@@ -72,6 +73,8 @@ def test_index_and_profiles(client: TestClient) -> None:
     assert profiles["static"]["ready"] is True
     assert profiles["sol-medium"]["ready"] is False
     assert profiles["sol-medium"]["model"] == "gpt-6.1-sol"
+    assert profiles["sol-medium"]["missing"] == "OPENAI_API_KEY"
+    assert profiles["local-qwen-coder-7b"]["provider"] == "ollama"
     assert all("sk-" not in str(p) for p in profiles.values())
 
 
@@ -107,3 +110,33 @@ def test_upload_rejects_other_file_types(client: TestClient) -> None:
         "/api/scan/upload", files={"file": ("x.exe", b"MZ")}, data={"profile": "static"}
     )
     assert response.status_code == 400
+
+
+def test_finished_scan_is_saved_and_reloaded(client: TestClient, tmp_path: Path) -> None:
+    job = client.post(
+        "/api/scan", json={"source": str(PROBES / "T01_direct"), "profile": "static"}
+    ).json()
+    deadline = time.time() + 120
+    while time.time() < deadline and client.get(f"/api/jobs/{job['id']}").json()["status"] not in {
+        "done",
+        "error",
+    }:
+        time.sleep(0.5)
+    saved = tmp_path / "data" / "scans" / f"{job['id']}.json"
+    assert saved.is_file()
+    webui._jobs.clear()
+    webui.load_history()
+    reloaded = client.get(f"/api/jobs/{job['id']}").json()
+    assert reloaded["status"] == "done"
+    assert reloaded["strict"] is True
+    assert reloaded["report"]["issues"]
+
+
+def test_running_scan_is_marked_interrupted_after_restart(client: TestClient) -> None:
+    stale = webui.Job(id="abc123", source="x", profile="static", status="running")
+    webui._save(stale)
+    webui._jobs.clear()
+    webui.load_history()
+    assert client.get("/api/jobs/abc123").json()["status"] == "interrupted"
+    assert client.delete("/api/jobs/abc123").status_code == 200
+    assert client.get("/api/jobs/abc123").status_code == 404
