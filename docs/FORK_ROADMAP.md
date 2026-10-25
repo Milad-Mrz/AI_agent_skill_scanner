@@ -72,7 +72,7 @@ Each item: first check what upstream already covers, then add only what's missin
 ### 3.6 Pin and rescan (done: `feat/pin-rescan`, `ext/pin.py`, Pins tab)
 `skillspector pin` stores the commit and content hashes. `skillspector verify` rescans and compares against the pinned version, so a skill that changes after review is caught. Reuse the baseline and fingerprint code in `suppression.py`.
 
-### 3.7 Sandbox (`sandbox/`): a separate project
+### 3.7 Sandbox (done, Docker backend: `feat/sandbox`, `ext/sandbox/`, docs/SANDBOX.md; KVM backend still planned)
 - KVM/libvirt VM image with honey files, canary tokens and auditd/eBPF monitoring.
 - mitmproxy add-on on the host that swaps the fake key for the real one, enforces limits, scans outgoing traffic for canaries and blocks everything else.
 - Several trigger prompts per skill, plus mock tickets, PRs and webpages carrying attack text.

@@ -39,6 +39,7 @@ from skillspector.ext.llm_profiles import (
     profile_ready,
     read_dotenv,
 )
+from skillspector.ext.review import add_dynamic
 
 STATIC_DIR = Path(__file__).parent / "static"
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -314,6 +315,47 @@ def rewrite_job(job_id: str, request: RewriteRequest) -> dict:
     found.report["rewrite"] = rewritten
     _save(found)
     return rewritten
+
+
+@app.post("/api/jobs/{job_id}/sandbox")
+def sandbox_job(job_id: str) -> dict:
+    """Run the scanned skill with a real agent in the Docker sandbox (dynamic analysis)."""
+    found = _jobs.get(job_id)
+    if not found or found.status != "done" or not found.report:
+        raise HTTPException(404, "no finished scan with that id")
+    if found.profile == STATIC_PROFILE:
+        raise HTTPException(400, "the sandbox agent needs an LLM model; rescan with one")
+    if found.source.startswith("upload: "):
+        raise HTTPException(400, "uploads cannot be re-fetched; scan a URL or local path")
+    with tempfile.TemporaryDirectory(prefix="skillui-sandbox-") as tmp:
+        out = Path(tmp) / "dyn.json"
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "skillspector.ext.sandbox",
+                found.source,
+                "--profile",
+                found.profile,
+                "--dotenv",
+                str(DOTENV),
+                "--out",
+                str(out),
+            ],
+            env=_scan_env(found.profile, found.strict),
+            capture_output=True,
+            text=True,
+            timeout=SCAN_TIMEOUT_SECONDS,
+            check=False,
+        )
+        if not out.is_file():
+            raise HTTPException(502, f"sandbox failed: {result.stderr.strip()[-500:]}")
+        dynamic = json.loads(out.read_text(encoding="utf-8"))
+    if dynamic.get("error"):
+        raise HTTPException(502, f"sandbox failed: {dynamic['error']}")
+    add_dynamic(found.report, dynamic)
+    _save(found)
+    return {**found.summary(), "report": found.report}
 
 
 @app.post("/api/jobs/{job_id}/pin")
