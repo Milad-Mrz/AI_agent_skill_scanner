@@ -117,3 +117,17 @@ def test_dynamic_findings_raise_the_verdict() -> None:
     review_mod.add_dynamic(clean, {"findings": []})
     assert clean["verdict"]["score"] == 30  # a clean run never lowers the verdict
     assert "does not prove" in clean["verdict"]["reasons"][-1]
+
+
+def test_upstream_fail_closed_caution_is_kept() -> None:
+    report = {
+        "risk_assessment": {"score": 15, "recommendation": "CAUTION"},
+        "analysis_completeness": {"status": "partial"},
+        "issues": [],
+    }
+    verdict = review_mod.combined_verdict(report, None, None, True)
+    assert verdict["recommendation"] == "CAUTION"
+    assert any("upstream keeps CAUTION" in r for r in verdict["reasons"])
+    result = {"verdict": verdict}
+    review_mod.add_dynamic(result, {"findings": []})
+    assert result["verdict"]["recommendation"] == "CAUTION"
