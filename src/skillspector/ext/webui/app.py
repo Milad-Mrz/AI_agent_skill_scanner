@@ -923,6 +923,92 @@ def _stop(selected: list[Job]) -> int:
     return stopped
 
 
+_SEV_RANK = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
+_REC_RANK = {"DO_NOT_INSTALL": 0, "CAUTION": 1, "SAFE": 2}
+
+
+def _skill_of(job: Job) -> str:
+    return job.skill or job.repo_name or job.source
+
+
+def combined_results(source: str, skill: str | None = None) -> dict:
+    """Latest finished result of every method for one link (optionally one skill), merged."""
+    done = [j for j in _jobs.values() if j.source == source and j.status == "done" and j.report]
+    if skill is not None:
+        done = [j for j in done if _skill_of(j) == skill]
+    latest: dict[tuple[str, str], Job] = {}
+    for found in sorted(done, key=lambda j: j.finished or j.started):
+        latest[(_skill_of(found), found.operation or found.profile)] = found
+    skills: dict[str, list[Job]] = {}
+    for (name, _op), found in latest.items():
+        skills.setdefault(name, []).append(found)
+
+    result = []
+    for name, runs in sorted(skills.items()):
+        runs.sort(key=lambda j: j.label or j.operation)
+        merged: dict[str, dict] = {}
+        for found in runs:
+            report = found.report or {}
+            issues = (report.get("verdict") or {}).get("issues") or report.get("issues") or []
+            for issue in issues:
+                location = issue.get("location") or {}
+                key = f"{issue.get('id')}|{location.get('file')}|{location.get('start_line')}"
+                entry = merged.setdefault(key, {**issue, "found_by": []})
+                method = found.label or found.operation
+                if method not in entry["found_by"]:
+                    entry["found_by"].append(method)
+                if not entry.get("code_snippet") and issue.get("code_snippet"):
+                    entry["code_snippet"] = issue["code_snippet"]
+
+        def latest_with(field_name: str, runs: list[Job] = runs) -> tuple[Job | None, object]:
+            best = None
+            for found in runs:
+                if (found.report or {}).get(field_name):
+                    if best is None or (found.finished or 0) > (best.finished or 0):
+                        best = found
+            return best, (best.report or {}).get(field_name) if best else None
+
+        explain_job, explanation = latest_with("explanation")
+        _sandbox_job, sandbox = latest_with("sandbox")
+        _reveal_job, reveal = latest_with("reveal")
+        _judge_job, judge = latest_with("judge")
+        recs = [r for r in ((j.summary().get("recommendation")) for j in runs) if r]
+        result.append(
+            {
+                "skill": name,
+                "methods": [j.summary() for j in runs],
+                "recommendation": min(recs, key=lambda r: _REC_RANK.get(r, 3)) if recs else None,
+                "issues": sorted(
+                    merged.values(),
+                    key=lambda i: (_SEV_RANK.get(i.get("severity"), 5), -len(i["found_by"])),
+                ),
+                "reveal": reveal or [],
+                "explanation": explanation,
+                "explain_job": explain_job.id if explain_job else None,
+                "judge": judge,
+                "sandbox": sandbox,
+            }
+        )
+    return {"source": source, "name": batches.repo_name(source), "skills": result}
+
+
+@app.get("/api/combined")
+def combined(source: str, skill: str | None = None) -> dict:
+    data = combined_results(source, skill)
+    if not data["skills"]:
+        raise HTTPException(404, "no finished results for that link")
+    return data
+
+
+@app.delete("/api/history")
+def delete_history(source: str) -> dict:
+    """Delete every task for one link (stopping unfinished ones)."""
+    selected = [j for j in list(_jobs.values()) if j.source == source]
+    if not selected:
+        raise HTTPException(404, "nothing to delete")
+    return {"deleted": _delete_jobs(selected)}
+
+
 @app.post("/api/stop-all")
 def stop_all() -> dict:
     """Stop every running task and empty the waiting list."""

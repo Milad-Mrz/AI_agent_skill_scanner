@@ -668,26 +668,153 @@ function repoRow(r) {
   return row;
 }
 
-// ---- history ----
+// ---- history: grouped by link, combined results ----
+const openLinks = new Set();
 async function loadHistory() {
   const box = $("#history");
-  const jobs = await api("/api/jobs");
-  if (!jobs.length) { box.replaceChildren(el("div", { class: "empty", text: "No scans yet." })); return; }
-  const tbody = el("tbody");
-  for (const j of jobs) {
-    tbody.append(el("tr", {},
-      el("td", { text: new Date(j.started * 1000).toLocaleString() }),
-      el("td", { text: `${j.repo_name || j.source}${j.skill ? " / " + j.skill : ""}` }),
-      el("td", { text: (j.label || j.profile) + (j.strict ? " · strict" : "") }),
-      el("td", { text: j.status === "done" ? `${j.score} · ${(j.recommendation || "").replaceAll("_", " ")}` : j.status }),
-      el("td", {},
-        j.status === "done" ? el("button", { text: "Open", onclick: () => openTask(j.id) }) : "",
-        " ",
-        el("button", { text: "Delete", onclick: async () => { await api(`/api/jobs/${j.id}`, { method: "DELETE" }); loadHistory(); } }))));
+  const all = (await api("/api/jobs")).filter((j) => j.source);
+  const filter = ($("#history-filter").value || "").toLowerCase();
+  const links = new Map();
+  for (const j of all) {
+    if (!links.has(j.source)) links.set(j.source, []);
+    links.get(j.source).push(j);
   }
-  box.replaceChildren(el("div", { class: "table-wrap" }, el("table", {},
-    el("thead", {}, el("tr", {}, el("th", { text: "Time" }), el("th", { text: "Source" }), el("th", { text: "Model" }), el("th", { text: "Result" }), el("th", { text: "" }))),
-    tbody)));
+  const rows = [...links.entries()]
+    .filter(([src, js]) => !filter || src.toLowerCase().includes(filter) || js.some((j) => (j.skill || "").toLowerCase().includes(filter)))
+    .sort((a, b) => Math.max(...b[1].map((j) => j.finished || j.started)) - Math.max(...a[1].map((j) => j.finished || j.started)));
+  if (!rows.length) { box.replaceChildren(el("div", { class: "empty", text: all.length ? "No link matches the filter." : "No scans yet." })); return; }
+  box.replaceChildren(...rows.map(([source, js]) => linkBlock(source, js, filter)));
+}
+$("#history-filter").addEventListener("input", () => loadHistory());
+
+function linkBlock(source, js, filter) {
+  const done = js.filter((j) => j.status === "done");
+  const skills = new Map();
+  for (const j of js) {
+    const name = j.skill || j.repo_name || source;
+    if (!skills.has(name)) skills.set(name, []);
+    skills.get(name).push(j);
+  }
+  const methods = [...new Set(done.map((j) => j.label || j.operation))];
+  const worst = worstOf(done.map((j) => j.recommendation));
+  const last = Math.max(...js.map((j) => j.finished || j.started));
+  const name = js[0].repo_name || source;
+  const view = el("button", { class: "primary", text: "View all results" });
+  view.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); showCombined(source, null); });
+  const remove = el("button", { class: "danger", text: "Delete", title: "Delete every result for this link" });
+  remove.addEventListener("click", async (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!confirmInline(remove, "Click again to delete")) return;
+    await api(`/api/history?${new URLSearchParams({ source })}`, { method: "DELETE" });
+    loadHistory();
+  });
+  const skillRows = [...skills.entries()]
+    .filter(([sk]) => !filter || sk.toLowerCase().includes(filter) || source.toLowerCase().includes(filter))
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([sk, runs]) => {
+      const latest = new Map();
+      for (const j of runs.filter((r) => r.status === "done").sort((a, b) => (a.finished || 0) - (b.finished || 0))) latest.set(j.label || j.operation, j);
+      const issues = mergeIssues([...latest.values()]);
+      const counts = SEV_ORDER.map((sev) => [sev, issues.filter((i) => i.sev === sev).length]).filter(([, n]) => n);
+      const w = worstOf([...latest.values()].map((j) => j.recommendation));
+      const row = el("div", { class: "item-head clickable", title: "Show all results for this skill" },
+        el("span", { class: "task-name" }, el("strong", { text: sk })),
+        el("span", { class: "sev-counts" }, ...counts.map(([sev, n]) => el("span", { class: `sev-mini ${sev}`, text: `${n} ${sev.toLowerCase()}` }))),
+        el("span", { class: "method-badges" }, ...[...latest.values()].map((j) =>
+          el("span", { class: `rec-badge ${j.recommendation || ""}`, text: `${j.label || j.operation}: ${j.score ?? "–"}` }))),
+        w ? el("span", { class: `rec-badge ${w}`, text: w.replaceAll("_", " ") }) : el("span", { class: "desc", text: runs.some((r) => r.status === "running" || r.status === "queued") ? "running…" : "no result" }),
+        el("span"));
+      row.addEventListener("click", () => latest.size && showCombined(source, sk));
+      return row;
+    });
+  const block = el("details", { class: "batch" },
+    el("summary", {},
+      icon(/^https?:\/\//.test(source) ? "github" : "folder"),
+      el("span", { class: "ftitle" }, el("strong", { text: name }), el("span", { class: "desc", text: ` ${source}` })),
+      el("span", { class: "rule", text: `${skills.size} skill(s) · ${methods.length} method(s) · ${new Date(last * 1000).toLocaleString()}` }),
+      worst ? el("span", { class: `rec-badge ${worst}`, text: worst.replaceAll("_", " ") }) : "",
+      el("span", { class: "batch-actions" }, done.length ? view : "", remove)),
+    el("div", { class: "item-list" }, ...skillRows));
+  block.open = openLinks.has(source) || !!filter;
+  block.addEventListener("toggle", () => { block.open ? openLinks.add(source) : openLinks.delete(source); });
+  return block;
+}
+
+async function showCombined(source, skill) {
+  const box = $("#history-detail");
+  box.replaceChildren(el("div", { class: "card" }, el("span", { class: "spinner" }), "Loading results…"));
+  box.scrollIntoView({ behavior: "smooth", block: "start" });
+  let data;
+  try {
+    data = await api(`/api/combined?${new URLSearchParams(skill ? { source, skill } : { source })}`);
+  } catch (err) { box.replaceChildren(el("div", { class: "card", text: `Could not load: ${err.message}` })); return; }
+  const close = el("button", { text: "Close", onclick: () => box.replaceChildren() });
+  const nav = el("div", { class: "card combined-nav" },
+    el("div", { class: "findings-head" },
+      el("h2", { class: "step", text: `${data.name}${skill ? " / " + skill : ` · ${data.skills.length} skill(s)`}` }), close));
+  if (!skill) {
+    const worstCounts = Object.fromEntries(REC_ORDER.map((r) => [r, data.skills.filter((s) => s.recommendation === r).length]));
+    nav.append(el("p", { class: "hint", text: `${worstCounts.DO_NOT_INSTALL} do not install · ${worstCounts.CAUTION} caution · ${worstCounts.SAFE} safe` }));
+  }
+  box.replaceChildren(nav, ...data.skills.map((s, i) => combinedCard(s, data, !skill && i > 0)));
+}
+
+function combinedCard(s, data, collapsed) {
+  const root = $("#tpl-combined").content.firstElementChild.cloneNode(true);
+  $(".c-title", root).textContent = s.skill;
+  $(".c-sub", root).textContent = `${data.name} · ${s.methods.length} method(s) · ${s.issues.length} merged finding(s)`;
+  if (s.recommendation) $(".c-rec", root).replaceChildren(el("span", { class: `rec-badge big ${s.recommendation}`, text: s.recommendation.replaceAll("_", " ") }));
+  $(".c-methods", root).append(...s.methods.map((m) => {
+    const card = el("div", { class: "method-card" },
+      el("div", { class: "method-name", text: m.label || m.operation }),
+      el("div", {}, el("span", { class: `rec-badge ${m.recommendation || ""}`, text: m.recommendation ? `${m.score ?? "–"} · ${m.recommendation.replaceAll("_", " ")}` : "done" })),
+      el("div", { class: "desc", text: m.finished ? new Date(m.finished * 1000).toLocaleString() : "" }),
+      el("button", { class: "link", text: "open full report", onclick: () => { showTab("batch"); openTask(m.id); } }));
+    return card;
+  }));
+  root.querySelectorAll(".subtab").forEach((b) => b.addEventListener("click", () => {
+    root.querySelectorAll(".subtab").forEach((x) => x.classList.toggle("active", x === b));
+    root.querySelectorAll(".subpanel").forEach((p) => p.classList.toggle("hidden", p.dataset.panel !== b.dataset.panel));
+  }));
+  renderMergedFindings(root, s.issues);
+  renderHidden(root, s.reveal || []);
+  renderInstructions(root, { id: s.explain_job }, { explanation: s.explanation });
+  renderSandbox(root, s.sandbox);
+  if (collapsed) {
+    const body = el("div", { class: "hidden" }, ...[...root.children].slice(1));
+    const head = root.firstElementChild;
+    const toggle = el("button", { class: "link", text: "show results" });
+    toggle.addEventListener("click", () => { body.classList.toggle("hidden"); toggle.textContent = body.classList.contains("hidden") ? "show results" : "hide results"; });
+    head.append(toggle);
+    root.replaceChildren(head, body);
+  }
+  return root;
+}
+
+function renderMergedFindings(root, issues) {
+  // Same filters as a single report, plus which methods found each issue.
+  $(".count", root).textContent = `(${issues.length})`;
+  const active = new Set(SEV_ORDER);
+  const filters = $(".filters", root);
+  for (const sev of SEV_ORDER) {
+    const n = issues.filter((i) => i.severity === sev).length;
+    if (!n) continue;
+    const b = el("button", { class: "on", text: `${sev} ${n}` });
+    b.addEventListener("click", () => { active.has(sev) ? active.delete(sev) : active.add(sev); b.classList.toggle("on"); draw(); });
+    filters.append(b);
+  }
+  function draw() {
+    const list = $(".findings", root);
+    list.replaceChildren();
+    const shown = issues.filter((i) => active.has(i.severity));
+    if (!shown.length) { list.append(el("div", { class: "empty", text: issues.length ? "No findings match the filter." : "No findings from any method." })); return; }
+    for (const i of shown) {
+      const node = renderFinding(i);
+      $("summary", node).append(el("span", { class: "found-by" }, ...(i.found_by || []).map((m) => el("span", { class: "op-chip", text: m }))));
+      list.append(node);
+    }
+  }
+  draw();
 }
 
 Promise.all([loadRepos(), loadOperations(), loadJobs()]).catch((err) => { $("#run-error").textContent = `Could not reach the server: ${err.message}`; });

@@ -246,3 +246,19 @@ button.icon-btn:hover { color: var(--crit); border-color: var(--crit); }
 
 .batch-actions { margin-left: auto; display: flex; gap: 6px; }
 .runs-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* ---- history ---- */
+#history-filter { flex: 0 1 260px; }
+details.batch > summary .icon svg { width: 20px; height: 20px; display: block; }
+.item-head.clickable { cursor: pointer; grid-template-columns: minmax(160px, 1.3fr) minmax(110px, 1.2fr) minmax(160px, 2fr) auto 0; }
+.item-head.clickable:hover { background: color-mix(in srgb, var(--accent) 10%, var(--tile-bg)); }
+.method-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.method-badges .rec-badge { font-weight: 600; font-size: 11px; }
+.combined .c-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.c-title { font-size: 18px; font-weight: 700; }
+.rec-badge.big { font-size: 15px; padding: 4px 12px; }
+.c-methods { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.method-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; background: var(--tile-bg); }
+.method-name { font-weight: 700; font-size: 13px; }
+.found-by { display: flex; gap: 4px; flex-wrap: wrap; margin-left: auto; }
+.found-by .op-chip { font-size: 11px; }

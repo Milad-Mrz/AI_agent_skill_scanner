@@ -288,3 +288,70 @@ def test_summary_carries_issue_keys(client: TestClient) -> None:
         id="k1", source="x", profile="static", status="done", report=report
     )
     assert client.get("/api/jobs/k1").json()["issues"] == [["P1", "HIGH", "SKILL.md", 3, "Ignore"]]
+
+
+def test_combined_results_merge_methods_per_skill(client: TestClient) -> None:
+    def issue(rule: str, sev: str, line: int) -> dict:
+        return {
+            "id": rule,
+            "severity": sev,
+            "finding": rule,
+            "location": {"file": "SKILL.md", "start_line": line},
+        }
+
+    src = "https://github.com/o/r"
+    webui._jobs["m1"] = webui.Job(
+        id="m1",
+        source=src,
+        profile="static",
+        status="done",
+        skill="alpha",
+        operation="static",
+        label="SkillSpector-MM",
+        finished=1.0,
+        report={
+            "verdict": {
+                "score": 21,
+                "recommendation": "CAUTION",
+                "issues": [issue("P1", "HIGH", 3)],
+            },
+            "reveal": [{"path": "SKILL.md", "items": [], "counts": {}, "revealed": ""}],
+        },
+    )
+    webui._jobs["m2"] = webui.Job(
+        id="m2",
+        source=src,
+        profile="sol-medium",
+        status="done",
+        skill="alpha",
+        operation="model:sol-medium",
+        label="GPT-6.1 Sol",
+        finished=2.0,
+        report={
+            "verdict": {
+                "score": 80,
+                "recommendation": "DO_NOT_INSTALL",
+                "issues": [issue("P1", "HIGH", 3), issue("BJ-1", "CRITICAL", 9)],
+            }
+        },
+    )
+    webui._jobs["m3"] = webui.Job(
+        id="m3",
+        source=src,
+        profile="static",
+        status="done",
+        skill="beta",
+        operation="static",
+        finished=1.0,
+        report={"verdict": {"score": 0, "recommendation": "SAFE", "issues": []}},
+    )
+    data = client.get("/api/combined", params={"source": src}).json()
+    assert [s["skill"] for s in data["skills"]] == ["alpha", "beta"]
+    alpha = data["skills"][0]
+    assert alpha["recommendation"] == "DO_NOT_INSTALL"
+    assert [i["id"] for i in alpha["issues"]] == ["BJ-1", "P1"]
+    assert set(alpha["issues"][1]["found_by"]) == {"SkillSpector-MM", "GPT-6.1 Sol"}
+    one = client.get("/api/combined", params={"source": src, "skill": "beta"}).json()
+    assert len(one["skills"]) == 1 and one["skills"][0]["recommendation"] == "SAFE"
+    assert client.delete("/api/history", params={"source": src}).json()["deleted"] == 3
+    assert client.get("/api/combined", params={"source": src}).status_code == 404
