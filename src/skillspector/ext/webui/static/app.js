@@ -178,6 +178,28 @@ async function loadJobs() {
   renderRuns();
 }
 function fmtSecs(s) { s = Math.max(0, Math.round(s)); return s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`; }
+const REC_ORDER = ["DO_NOT_INSTALL", "CAUTION", "SAFE"];
+const FINISHED = ["done", "error", "cancelled", "interrupted"];
+const openItems = new Set();   // item keys whose merged issue list is expanded
+const closedBatches = new Set();
+
+function worstOf(recs) {
+  return recs.filter(Boolean).sort((x, y) => REC_ORDER.indexOf(x) - REC_ORDER.indexOf(y))[0];
+}
+
+function mergeIssues(items) {
+  // Union of issues across all runs of one skill, keyed by rule + file + line.
+  const merged = new Map();
+  for (const j of items) {
+    for (const [rule, sev, file, line, title] of j.issues || []) {
+      const key = `${rule}|${file}|${line}`;
+      if (!merged.has(key)) merged.set(key, { rule, sev, file, line, title, by: new Set() });
+      merged.get(key).by.add(j.label || j.operation);
+    }
+  }
+  return [...merged.values()].sort((x, y) => SEV_ORDER.indexOf(x.sev) - SEV_ORDER.indexOf(y.sev));
+}
+
 function renderRuns() {
   const box = $("#runs");
   box.replaceChildren();
@@ -185,29 +207,106 @@ function renderRuns() {
   const queued = jobs.filter((j) => j.status === "queued").sort((a, b) => a.started - b.started);
   const running = jobs.filter((j) => j.status === "running").length;
   $("#queue-summary").textContent = `${running} running · ${queued.length} waiting · ${jobs.filter((j) => j.status === "done").length} done`;
-  const groups = new Map();
+  $("#stop-all").disabled = !(running || queued.length);
+  const batchesMap = new Map();
   for (const j of jobs) {
     const key = j.batch_id || `single-${j.id}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(j);
+    if (!batchesMap.has(key)) batchesMap.set(key, []);
+    batchesMap.get(key).push(j);
   }
-  const ordered = [...groups.entries()].sort((a, b) => Math.max(...b[1].map((j) => j.started)) - Math.max(...a[1].map((j) => j.started)));
-  for (const [key, items] of ordered.slice(0, 15)) {
-    items.sort((a, b) => a.started - b.started || a.id.localeCompare(b.id));
-    const done = items.filter((j) => ["done", "error", "cancelled", "interrupted"].includes(j.status)).length;
-    const worst = items.filter((j) => j.recommendation).map((j) => j.recommendation)
-      .sort((a, b) => ["DO_NOT_INSTALL", "CAUTION", "SAFE"].indexOf(a) - ["DO_NOT_INSTALL", "CAUTION", "SAFE"].indexOf(b))[0];
-    const when = new Date(Math.min(...items.map((j) => j.started)) * 1000).toLocaleString();
-    const rows = el("div", { class: "task-list" }, ...items.map((j) => taskRow(j, queued)));
-    const open = items.some((j) => j.status === "running" || j.status === "queued") || ordered[0][0] === key;
-    const group = el("details", { class: "batch" }, el("summary", {},
-      el("span", { class: "ftitle", text: key.startsWith("single-") ? `Single scan · ${when}` : `Batch ${key} · ${when}` }),
-      el("span", { class: "rule", text: `${done}/${items.length} finished` }),
-      worst ? el("span", { class: `rec-badge ${worst}`, text: worst.replaceAll("_", " ") }) : ""), rows);
-    if (open) group.open = true;
-    box.append(group);
-  }
+  const ordered = [...batchesMap.entries()].sort((a, b) =>
+    Math.max(...b[1].map((j) => j.started)) - Math.max(...a[1].map((j) => j.started)));
+  for (const [key, tasks] of ordered.slice(0, 20)) box.append(batchBlock(key, tasks, queued));
 }
+
+function batchBlock(key, tasks, queued) {
+  const done = tasks.filter((j) => FINISHED.includes(j.status)).length;
+  const worst = worstOf(tasks.map((j) => j.recommendation));
+  const when = new Date(Math.min(...tasks.map((j) => j.started)) * 1000).toLocaleString();
+  const itemsMap = new Map();
+  for (const j of tasks) {
+    const k = `${j.repo_id || j.repo_name}|${j.skill || j.repo_name}`;
+    if (!itemsMap.has(k)) itemsMap.set(k, []);
+    itemsMap.get(k).push(j);
+  }
+  const items = [...itemsMap.entries()].sort((a, b) => (a[1][0].skill || "").localeCompare(b[1][0].skill || ""));
+  const active = tasks.some((j) => j.status === "queued" || j.status === "running");
+  const stop = active && !key.startsWith("single-")
+    ? el("button", { class: "danger", text: "Stop", title: "Stop this run's running and waiting tasks" }) : "";
+  if (stop) stop.addEventListener("click", async (e) => {
+    e.preventDefault(); e.stopPropagation();
+    await api(`/api/batches/${encodeURIComponent(key)}/stop`, { method: "POST" });
+    loadJobs();
+  });
+  const remove = el("button", { class: "danger", text: "Delete run", title: "Delete this run and stop its unfinished tasks" });
+  remove.addEventListener("click", async (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!confirmInline(remove, "Click again to delete")) return;
+    await api(`/api/batches/${encodeURIComponent(key)}`, { method: "DELETE" });
+    loadJobs();
+  });
+  const group = el("details", { class: "batch" }, el("summary", {},
+    el("span", { class: "ftitle", text: key.startsWith("single-") ? `Single scan · ${when}` : `Run ${key} · ${when}` }),
+    el("span", { class: "rule", text: `${items.length} item(s) · ${done}/${tasks.length} tasks finished` }),
+    worst ? el("span", { class: `rec-badge ${worst}`, text: worst.replaceAll("_", " ") }) : "",
+    el("span", { class: "batch-actions" }, stop, remove)),
+    el("div", { class: "item-list" }, ...items.map(([k, its]) => itemBlock(key, k, its, queued))));
+  group.open = !closedBatches.has(key);
+  group.addEventListener("toggle", () => { group.open ? closedBatches.delete(key) : closedBatches.add(key); });
+  return group;
+}
+
+function confirmInline(button, text) {
+  // Two-click confirmation without browser dialogs.
+  if (button.dataset.armed) return true;
+  button.dataset.armed = "1";
+  const old = button.textContent;
+  button.textContent = text;
+  setTimeout(() => { delete button.dataset.armed; button.textContent = old; }, 3000);
+  return false;
+}
+
+function itemBlock(batchKey, itemKey, tasks, queued) {
+  tasks.sort((a, b) => a.started - b.started || (a.label || "").localeCompare(b.label || ""));
+  const first = tasks[0];
+  const issues = mergeIssues(tasks.filter((j) => j.status === "done"));
+  const counts = SEV_ORDER.map((sev) => [sev, issues.filter((i) => i.sev === sev).length]).filter(([, n]) => n);
+  const worst = worstOf(tasks.map((j) => j.recommendation));
+  const finished = tasks.filter((j) => FINISHED.includes(j.status)).length;
+  const fullKey = `${batchKey}::${itemKey}`;
+
+  const toggle = el("button", { class: "link", text: openItems.has(fullKey) ? "hide issues" : `issues (${issues.length})` });
+  toggle.addEventListener("click", () => { openItems.has(fullKey) ? openItems.delete(fullKey) : openItems.add(fullKey); renderRuns(); });
+  const remove = el("button", { class: "icon-btn", text: "×", title: "Delete this item's runs" });
+  remove.addEventListener("click", async () => {
+    if (!confirmInline(remove, "delete?")) return;
+    const params = new URLSearchParams({ skill: first.skill || "" });
+    if (first.repo_id) params.set("repo_id", first.repo_id);
+    await api(`/api/batches/${encodeURIComponent(batchKey)}?${params}`, { method: "DELETE" });
+    loadJobs();
+  });
+
+  const head = el("div", { class: "item-head" },
+    el("span", { class: "task-name" }, el("strong", { text: first.skill || first.repo_name }), el("span", { class: "desc", text: first.repo_name })),
+    el("span", { class: "sev-counts" }, ...counts.map(([sev, n]) => el("span", { class: `sev-mini ${sev}`, text: `${n} ${sev.toLowerCase()}` }))),
+    el("span", { class: "rule", text: `${finished}/${tasks.length} runs` }),
+    worst ? el("span", { class: `rec-badge ${worst}`, text: worst.replaceAll("_", " ") }) : el("span"),
+    el("span", { class: "task-actions" }, issues.length ? toggle : "", remove));
+
+  const block = el("div", { class: "item" }, head, el("div", { class: "runs-of-item" }, ...tasks.map((j) => taskRow(j, queued))));
+  if (openItems.has(fullKey) && issues.length) {
+    const tbody = el("tbody", {}, ...issues.map((i) => el("tr", {},
+      el("td", {}, el("span", { class: `sev ${i.sev}`, text: i.sev })),
+      el("td", { class: "rule", text: i.rule }),
+      el("td", { class: "loc", text: i.file ? `${i.file}${i.line ? ":" + i.line : ""}` : "" }),
+      el("td", { text: i.title }),
+      el("td", { class: "desc", text: [...i.by].join(", ") }))));
+    block.append(el("div", { class: "table-wrap merged" }, el("table", {},
+      el("thead", {}, el("tr", {}, ...["Severity", "Rule", "Where", "Issue", "Found by"].map((t) => el("th", { text: t })))), tbody)));
+  }
+  return block;
+}
+
 function taskRow(j, queued) {
   const stages = j.stages || [];
   const current = stages.indexOf(j.stage);
@@ -229,19 +328,28 @@ function taskRow(j, queued) {
   const actions = el("span", { class: "task-actions" });
   if (j.status === "done") actions.append(el("button", { text: "Open", onclick: () => openTask(j.id) }));
   if (j.status === "queued" || j.status === "running") actions.append(el("button", { text: "Cancel", onclick: async () => { await api(`/api/jobs/${j.id}/cancel`, { method: "POST" }); loadJobs(); } }));
-  const row = el("div", { class: "task" + (j.status === "running" ? " running" : "") },
-    el("span", { class: "task-name" }, el("strong", { text: j.skill || j.repo_name }), el("span", { class: "desc", text: j.repo_name })),
+  const row = el("div", { class: "task sub" + (j.status === "running" ? " running" : "") },
     el("span", { class: "op-chip", text: j.label || j.operation }),
     chips, el("span", { class: "num", text: time }), result, actions);
   if (j.error && j.status === "error") row.append(el("div", { class: "task-error", text: j.error }));
   return row;
 }
+
 async function openTask(id) {
   const job = await api(`/api/jobs/${id}`);
   showTab("batch");
   renderReport(job);
   $("#result").scrollIntoView({ behavior: "smooth", block: "start" });
 }
+
+$("#stop-all").addEventListener("click", async () => {
+  const button = $("#stop-all");
+  if (!confirmInline(button, "Click again to stop everything")) return;
+  const r = await api("/api/stop-all", { method: "POST" });
+  button.textContent = `Stopped ${r.stopped}`;
+  setTimeout(() => { button.textContent = "Stop all"; }, 2500);
+  loadJobs();
+});
 
 // ---- polling ----
 async function poll() {

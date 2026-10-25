@@ -125,7 +125,25 @@ class Job:
             "stage": self.stage,
             "stages": STAGES.get(self.kind, []),
             "stage_times": self.stage_times,
+            "issues": _issue_keys(risk.get("issues") or report.get("issues") or []),
         }
+
+
+def _issue_keys(issues: list[dict]) -> list[list]:
+    """Compact [rule, severity, file, line, title] rows so the UI can merge issues per skill."""
+    rows = []
+    for issue in issues[:300]:
+        location = issue.get("location") or {}
+        rows.append(
+            [
+                str(issue.get("id", "")),
+                str(issue.get("severity", "")),
+                str(location.get("file", "")),
+                location.get("start_line"),
+                str(issue.get("finding") or issue.get("pattern") or "")[:120],
+            ]
+        )
+    return rows
 
 
 _jobs: dict[str, Job] = {}
@@ -862,6 +880,58 @@ def run_batch(request: BatchRequest) -> dict:
     if not created:
         raise HTTPException(400, "no ready repositories selected")
     return {"batch_id": batch_id, "tasks": created}
+
+
+def _delete_jobs(selected: list[Job]) -> int:
+    for found in selected:
+        if found.status in {"queued", "running"}:
+            found.status = "cancelled"
+            if process := _processes.get(found.id):
+                process.kill()
+        with _lock:
+            _jobs.pop(found.id, None)
+        _job_path(found.id).unlink(missing_ok=True)
+    return len(selected)
+
+
+@app.delete("/api/batches/{batch_id}")
+def delete_batch(batch_id: str, repo_id: str | None = None, skill: str | None = None) -> dict:
+    """Delete a whole run, or one item of it (repo_id + skill); running tasks are stopped."""
+    selected = [
+        j
+        for j in list(_jobs.values())
+        if (j.batch_id == batch_id or (batch_id.startswith("single-") and j.id == batch_id[7:]))
+        and (repo_id is None or j.repo_id == repo_id)
+        and (skill is None or j.skill == skill)
+    ]
+    if not selected:
+        raise HTTPException(404, "nothing to delete")
+    return {"deleted": _delete_jobs(selected)}
+
+
+def _stop(selected: list[Job]) -> int:
+    stopped = 0
+    for found in selected:
+        if found.status in {"queued", "running"}:
+            found.status = "cancelled"
+            found.error = "stopped by the user"
+            if process := _processes.get(found.id):
+                process.kill()
+            found.finished = time.time()
+            _save(found)
+            stopped += 1
+    return stopped
+
+
+@app.post("/api/stop-all")
+def stop_all() -> dict:
+    """Stop every running task and empty the waiting list."""
+    return {"stopped": _stop(list(_jobs.values()))}
+
+
+@app.post("/api/batches/{batch_id}/stop")
+def stop_batch(batch_id: str) -> dict:
+    return {"stopped": _stop([j for j in list(_jobs.values()) if j.batch_id == batch_id])}
 
 
 @app.post("/api/jobs/{job_id}/cancel")
