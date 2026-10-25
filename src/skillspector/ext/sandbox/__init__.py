@@ -34,6 +34,12 @@ from skillspector.ext.llm_profiles import PROFILES, profile_env
 from skillspector.ext.sandbox.gateway import PLANTED_INSTRUCTION, Gateway, GatewayConfig
 
 IMAGE = "skill-sandbox:1"
+
+
+def _progress(stage: str) -> None:
+    print("@@PROGRESS " + json.dumps({"stage": stage}), flush=True)
+
+
 IMAGE_DIR = Path(__file__).parent / "image"
 GATEWAY_PORT = 8080
 RUN_TIMEOUT_SECONDS = 900
@@ -348,6 +354,7 @@ def run_sandbox(
         env = profile_env(profile, dotenv=dotenv)
         upstream, real_key, extra = _upstream(profile, env)
         model = PROFILES[profile]["SKILLSPECTOR_MODEL"]
+    _progress("image")
     ensure_image()
     run_id = secrets.token_hex(4)
     network = f"skill-sandbox-{run_id}"
@@ -360,6 +367,7 @@ def run_sandbox(
     result = SandboxResult()
     tmp = Path(tempfile.mkdtemp(prefix="skill-sandbox-"))
     try:
+        _progress("prepare")
         honey = build_home(tmp / "home", skill_dir, canaries)
         (tmp / "task.json").write_text(
             json.dumps(
@@ -434,6 +442,7 @@ def run_sandbox(
             )
             _docker("cp", f"{tmp / 'home'}/.", f"{container}:{HOME}")
             _docker("cp", str(tmp / "task.json"), f"{container}:/work/task.json")
+            _progress("agent-run")
             started = time.time()
             run = _docker("start", "-a", container, check=False, timeout=RUN_TIMEOUT_SECONDS)
             _docker("cp", f"{container}:/work/out/.", str(tmp / "out"), check=False)
@@ -447,6 +456,7 @@ def run_sandbox(
         result.transcripts = [
             json.loads(p.read_text()) for p in sorted((tmp / "out").glob("transcript_*.json"))
         ]
+        _progress("analyse")
         result.findings = analyse(strace, events, honey, gateway_ip, canaries)
         result.events = {
             "seconds": round(time.time() - started),

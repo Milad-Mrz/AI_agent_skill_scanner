@@ -1,9 +1,13 @@
-"""Local FastAPI web UI for scanning agent skills.
+"""Local FastAPI web UI for scanning agent skills, one at a time or in batches.
 
-Each scan runs the fork review pipeline (``python -m skillspector.ext.review``: upstream
-scan, reveal, bundle judge, explain, combined verdict) in a subprocess with the
-environment of the selected LLM profile, so the UI never imports untrusted skill content into this
-process. The page escapes everything it shows and never renders skill markdown.
+Batch flow: add repositories (each is fetched once with the upstream hardened clone and
+split into its skills), pick operations (static rules, a model review, explain, sandbox,
+pin), run. Every (skill, operation) pair becomes a queued task with live stage progress;
+more repositories can be added and queued while tasks run.
+
+Every task runs a fork module (review, sandbox) in a subprocess with the environment of
+the chosen LLM profile, so this process never imports untrusted skill content. The page
+escapes everything it shows and never renders skill markdown.
 
 Bind to localhost only: the UI accepts local paths and spends API credit.
 """
@@ -20,7 +24,7 @@ import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Annotated
 
@@ -30,6 +34,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from skillspector.ext import batch as batches
 from skillspector.ext import github_search
 from skillspector.ext import pin as pins
 from skillspector.ext.llm_profiles import (
@@ -44,9 +49,10 @@ from skillspector.ext.review import add_dynamic
 STATIC_DIR = Path(__file__).parent / "static"
 REPO_ROOT = Path(__file__).resolve().parents[4]
 DOTENV = Path(os.environ.get("SKILLSPECTOR_UI_DOTENV", REPO_ROOT / ".env"))
-SCAN_TIMEOUT_SECONDS = 900
+SCAN_TIMEOUT_SECONDS = int(os.environ.get("SKILLSPECTOR_UI_TASK_TIMEOUT", "2400"))
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 STATIC_PROFILE = "static"
+PROGRESS_PREFIX = "@@PROGRESS "
 # Scan history survives server restarts and crashes.
 DATA_DIR = Path(
     os.environ.get(
@@ -54,6 +60,20 @@ DATA_DIR = Path(
         Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "skill-scanner",
     )
 )
+# LLM tasks share one API key; running them one at a time avoids provider throttling,
+# which otherwise shows up as incompletely inspected files.
+LLM_WORKERS = int(os.environ.get("SKILLSPECTOR_UI_LLM_WORKERS", "1"))
+STATIC_WORKERS = int(os.environ.get("SKILLSPECTOR_UI_STATIC_WORKERS", "3"))
+
+# Stages each task kind reports, in order (for the progress display).
+STAGES = {
+    "review-static": ["fetch", "upstream-scan", "reveal", "verdict"],
+    "review": ["fetch", "upstream-scan", "reveal", "judge", "verdict"],
+    "review-full": ["fetch", "upstream-scan", "reveal", "judge", "explain", "verdict"],
+    "explain": ["fetch", "upstream-scan", "reveal", "explain", "verdict"],
+    "sandbox": ["image", "prepare", "agent-run", "analyse"],
+    "pin": ["pin"],
+}
 
 
 @dataclass
@@ -62,12 +82,23 @@ class Job:
     source: str
     profile: str
     strict: bool = True
-    status: str = "queued"  # queued | running | done | error | interrupted
+    status: str = "queued"  # queued | running | done | error | interrupted | cancelled
     started: float = field(default_factory=time.time)
     finished: float | None = None
     report: dict | None = None
     error: str | None = None
     cleanup: Path | None = None
+    kind: str = "review-full"  # key of STAGES
+    operation: str = ""
+    label: str = ""
+    repo_id: str = ""
+    repo_name: str = ""
+    skill: str = ""
+    target: str = ""  # what the subprocess scans (local cache path, URL or upload)
+    batch_id: str = ""
+    stage: str = ""
+    stage_times: dict = field(default_factory=dict)
+    began: float | None = None
 
     def summary(self) -> dict:
         report = self.report or {}
@@ -80,16 +111,50 @@ class Job:
             "status": self.status,
             "started": self.started,
             "finished": self.finished,
+            "began": self.began,
             "error": self.error,
             "score": risk.get("score"),
             "recommendation": risk.get("recommendation"),
+            "kind": self.kind,
+            "operation": self.operation,
+            "label": self.label or PROFILE_LABELS.get(self.profile, self.profile),
+            "repo_id": self.repo_id,
+            "repo_name": self.repo_name,
+            "skill": self.skill,
+            "batch_id": self.batch_id,
+            "stage": self.stage,
+            "stages": STAGES.get(self.kind, []),
+            "stage_times": self.stage_times,
         }
 
 
 _jobs: dict[str, Job] = {}
+_processes: dict[str, subprocess.Popen] = {}
 _lock = threading.Lock()
-_executor = ThreadPoolExecutor(max_workers=2)
-_PERSISTED_FIELDS = ("id", "source", "profile", "strict", "status", "started", "finished", "error")
+_llm_pool = ThreadPoolExecutor(max_workers=max(1, LLM_WORKERS))
+_static_pool = ThreadPoolExecutor(max_workers=max(1, STATIC_WORKERS))
+_fetch_pool = ThreadPoolExecutor(max_workers=2)
+_PERSISTED_FIELDS = (
+    "id",
+    "source",
+    "profile",
+    "strict",
+    "status",
+    "started",
+    "finished",
+    "error",
+    "kind",
+    "operation",
+    "label",
+    "repo_id",
+    "repo_name",
+    "skill",
+    "target",
+    "batch_id",
+    "stage",
+    "stage_times",
+    "began",
+)
 
 app = FastAPI(title="Skill Scanner", docs_url="/api/docs", redoc_url=None)
 
@@ -104,7 +169,7 @@ def _save(job: Job) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     record = {name: getattr(job, name) for name in _PERSISTED_FIELDS}
     record["report"] = job.report
-    tmp = path.with_suffix(".tmp")
+    tmp = path.with_suffix(f".{threading.get_ident()}.tmp")
     tmp.write_text(json.dumps(record), encoding="utf-8")
     tmp.replace(path)
 
@@ -123,7 +188,7 @@ def load_history() -> None:
         job.report = record.get("report")
         if job.status in {"queued", "running"}:
             job.status = "interrupted"
-            job.error = "The server stopped before this scan finished. Run it again."
+            job.error = "The server stopped before this task finished. Run it again."
             _save(job)
         _jobs[job.id] = job
 
@@ -131,37 +196,119 @@ def load_history() -> None:
 def _scan_env(profile: str, strict: bool) -> dict[str, str]:
     env = dict(os.environ) if profile == STATIC_PROFILE else profile_env(profile, dotenv=DOTENV)
     env["SKILLSPECTOR_STRICT"] = "1" if strict else ""
+    if profile != STATIC_PROFILE:
+        # Small per-skill tasks rarely need it, but large bundles must not stop at 600 s.
+        env.setdefault("SKILLSPECTOR_MAX_WORKFLOW_SECONDS", str(SCAN_TIMEOUT_SECONDS - 300))
     return env
 
 
-def _run_scan(job: Job, target: str) -> None:
-    job.status = "running"
-    _save(job)
-    workdir = Path(tempfile.mkdtemp(prefix="skillui-"))
-    report_path = workdir / "report.json"
-    cmd = [sys.executable, "-m", "skillspector.ext.review", target, "--out", str(report_path)]
-    if job.profile == STATIC_PROFILE:
+def _command(job: Job, out: Path) -> list[str] | None:
+    python = [sys.executable, "-m"]
+    if job.kind == "sandbox":
+        return python + [
+            "skillspector.ext.sandbox",
+            job.target,
+            "--profile",
+            job.profile,
+            "--dotenv",
+            str(DOTENV),
+            "--out",
+            str(out),
+        ]
+    if job.kind == "pin":
+        return None
+    cmd = python + ["skillspector.ext.review", job.target, "--out", str(out)]
+    if job.profile == STATIC_PROFILE or job.kind == "review-static":
         cmd.append("--no-llm")
+    elif job.kind == "review":
+        cmd.append("--no-explain")
+    elif job.kind == "explain":
+        cmd += ["--no-judge", "--static-upstream"]
     if not job.strict:
         cmd.append("--no-strict")
+    return cmd
+
+
+def _set_stage(job: Job, stage: str) -> None:
+    job.stage = stage
+    job.stage_times[stage] = round(time.time(), 1)
+
+
+def _run_job(job: Job) -> None:
+    if job.status == "cancelled":
+        return
+    job.status = "running"
+    job.began = time.time()
+    _save(job)
+    workdir = Path(tempfile.mkdtemp(prefix="skillui-"))
+    out = workdir / "result.json"
     try:
-        result = subprocess.run(
-            cmd,
-            env=_scan_env(job.profile, job.strict),
-            capture_output=True,
-            text=True,
-            timeout=SCAN_TIMEOUT_SECONDS,
-            check=False,
-        )
-        if not report_path.is_file():
-            raise RuntimeError(
-                f"scan failed (exit {result.returncode}): {result.stderr.strip()[-800:]}"
+        if job.kind == "pin":
+            _set_stage(job, "pin")
+            record = pins.pin(job.source, batches.repo_name(job.source).replace("/", "-"))
+            job.report = {
+                "verdict": {
+                    "score": None,
+                    "recommendation": None,
+                    "reasons": [
+                        f"pinned {len(record.files)} files, commit {record.commit or 'n/a'}"
+                    ],
+                    "issues": [],
+                },
+                "pin": {k: v for k, v in record.to_dict().items() if k != "files"},
+            }
+        else:
+            process = subprocess.Popen(
+                _command(job, out),
+                env=_scan_env(job.profile, job.strict),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
             )
-        job.report = json.loads(report_path.read_text(encoding="utf-8"))
+            _processes[job.id] = process
+            timer = threading.Timer(SCAN_TIMEOUT_SECONDS, process.kill)
+            timer.start()
+            stderr_tail: list[str] = []
+            reader = threading.Thread(
+                target=lambda: stderr_tail.extend(process.stderr.read().splitlines()[-40:]),
+                daemon=True,
+            )
+            reader.start()
+            try:
+                for line in process.stdout:
+                    if line.startswith(PROGRESS_PREFIX):
+                        try:
+                            _set_stage(job, json.loads(line[len(PROGRESS_PREFIX) :])["stage"])
+                        except (ValueError, KeyError):
+                            pass
+                process.wait()
+            finally:
+                timer.cancel()
+                reader.join(timeout=5)
+                _processes.pop(job.id, None)
+            if job.status == "cancelled":
+                return
+            if not out.is_file():
+                timed_out = process.returncode in (-9, 137)
+                raise RuntimeError(
+                    f"timed out after {SCAN_TIMEOUT_SECONDS} s in stage {job.stage!r}"
+                    if timed_out
+                    else f"exit {process.returncode}: {' '.join(stderr_tail)[-800:]}"
+                )
+            data = json.loads(out.read_text(encoding="utf-8"))
+            if job.kind == "sandbox":
+                if data.get("error"):
+                    raise RuntimeError(f"sandbox: {data['error']}")
+                base = {
+                    "report": {},
+                    "verdict": {"score": 0, "recommendation": "SAFE", "reasons": [], "issues": []},
+                }
+                data = add_dynamic(base, data)
+            job.report = data
         job.status = "done"
-    except Exception as exc:  # noqa: BLE001 - surfaced to the user as the job error
+    except Exception as exc:  # noqa: BLE001 - surfaced to the user as the task error
         job.error = str(exc)
-        job.status = "error"
+        job.status = "error" if job.status != "cancelled" else "cancelled"
     finally:
         job.finished = time.time()
         _save(job)
@@ -170,24 +317,43 @@ def _run_scan(job: Job, target: str) -> None:
             shutil.rmtree(job.cleanup, ignore_errors=True)
 
 
-def _submit(
-    source: str, target: str, profile: str, strict: bool = True, cleanup: Path | None = None
-) -> Job:
-    if profile != STATIC_PROFILE and profile not in PROFILES:
-        raise HTTPException(400, f"unknown profile {profile!r}")
-    if profile != STATIC_PROFILE:
-        try:
-            profile_env(profile, dotenv=DOTENV)
-        except ValueError as exc:
-            raise HTTPException(400, str(exc)) from exc
-    job = Job(
-        id=uuid.uuid4().hex[:12], source=source, profile=profile, strict=strict, cleanup=cleanup
-    )
+def _enqueue(job: Job) -> Job:
     with _lock:
         _jobs[job.id] = job
     _save(job)
-    _executor.submit(_run_scan, job, target)
+    pool = _static_pool if job.profile == STATIC_PROFILE or job.kind == "pin" else _llm_pool
+    pool.submit(_run_job, job)
     return job
+
+
+def _check_profile(profile: str) -> None:
+    if profile == STATIC_PROFILE:
+        return
+    if profile not in PROFILES:
+        raise HTTPException(400, f"unknown profile {profile!r}")
+    try:
+        profile_env(profile, dotenv=DOTENV)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+def _submit(
+    source: str, target: str, profile: str, strict: bool = True, cleanup: Path | None = None
+) -> Job:
+    _check_profile(profile)
+    return _enqueue(
+        Job(
+            id=uuid.uuid4().hex[:12],
+            source=source,
+            profile=profile,
+            strict=strict,
+            cleanup=cleanup,
+            target=target,
+            kind="review-static" if profile == STATIC_PROFILE else "review-full",
+            operation=profile,
+            repo_name=batches.repo_name(source),
+        )
+    )
 
 
 class ScanRequest(BaseModel):
@@ -334,7 +500,7 @@ def sandbox_job(job_id: str) -> dict:
                 sys.executable,
                 "-m",
                 "skillspector.ext.sandbox",
-                found.source,
+                found.target or found.source,
                 "--profile",
                 found.profile,
                 "--dotenv",
@@ -401,6 +567,10 @@ def delete_job(job_id: str) -> dict:
         found = _jobs.pop(job_id, None)
     if not found:
         raise HTTPException(404, "unknown job")
+    if found.status in {"queued", "running"}:
+        found.status = "cancelled"
+        if process := _processes.get(job_id):
+            process.kill()
     _job_path(job_id).unlink(missing_ok=True)
     return {"deleted": job_id}
 
@@ -423,5 +593,292 @@ def repo(owner: str, name: str) -> dict:
         raise HTTPException(502, f"GitHub lookup failed: {exc}") from exc
 
 
+# ---------------------------------------------------------------------------
+# Batch: repositories, operations, runs
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class Repo:
+    id: str
+    source: str
+    name: str
+    status: str = "fetching"  # fetching | ready | error
+    skills: list[dict] = field(default_factory=list)
+    root: str = ""
+    error: str | None = None
+    added: float = field(default_factory=time.time)
+    truncated: bool = False
+
+    def to_dict(self) -> dict:
+        data = asdict(self)
+        data.pop("root")
+        return data
+
+
+_repos: dict[str, Repo] = {}
+
+
+def _repos_path() -> Path:
+    return DATA_DIR / "repos.json"
+
+
+def _save_repos() -> None:
+    _repos_path().parent.mkdir(parents=True, exist_ok=True)
+    with _lock:
+        data = [asdict(r) for r in _repos.values()]
+    tmp = _repos_path().with_suffix(f".{threading.get_ident()}.tmp")
+    tmp.write_text(json.dumps(data), encoding="utf-8")
+    tmp.replace(_repos_path())
+
+
+def load_repos() -> None:
+    if not _repos_path().is_file():
+        return
+    try:
+        for record in json.loads(_repos_path().read_text(encoding="utf-8")):
+            repo_record = Repo(**record)
+            if repo_record.status == "fetching" or not Path(repo_record.root).is_dir():
+                repo_record.status, repo_record.error = "error", "fetch interrupted; refresh it"
+            _repos[repo_record.id] = repo_record
+    except (OSError, ValueError, TypeError):
+        return
+
+
+def _fetch_repo(repo_record: Repo) -> None:
+    try:
+        fetched = batches.fetch(repo_record.source, DATA_DIR / "repo-cache")
+        repo_record.root = str(fetched.root)
+        repo_record.skills = [s.to_dict() for s in fetched.skills]
+        repo_record.truncated = fetched.truncated
+        repo_record.status = "ready" if fetched.skills else "error"
+        repo_record.error = None if fetched.skills else "no SKILL.md found in this repository"
+    except Exception as exc:  # noqa: BLE001 - shown on the tile
+        repo_record.status, repo_record.error = "error", str(exc)[:500]
+    _save_repos()
+
+
+class RepoRequest(BaseModel):
+    sources: list[str] = Field(..., description="GitHub/HTTPS URLs or local paths")
+
+
+@app.post("/api/repos")
+def add_repos(request: RepoRequest) -> list[dict]:
+    added = []
+    for raw in request.sources:
+        source = raw.strip()
+        if not source:
+            continue
+        if not source.startswith(("https://", "http://")) and not Path(source).exists():
+            raise HTTPException(400, f"not a URL or existing path: {source[:200]}")
+        existing = next((r for r in _repos.values() if r.source == source), None)
+        if existing:
+            added.append(existing.to_dict())
+            continue
+        repo_record = Repo(uuid.uuid4().hex[:10], source, batches.repo_name(source))
+        with _lock:
+            _repos[repo_record.id] = repo_record
+        _fetch_pool.submit(_fetch_repo, repo_record)
+        added.append(repo_record.to_dict())
+    _save_repos()
+    return added
+
+
+@app.get("/api/repos")
+def list_repos() -> list[dict]:
+    with _lock:
+        return [r.to_dict() for r in sorted(_repos.values(), key=lambda r: r.added)]
+
+
+@app.post("/api/repos/{repo_id}/refresh")
+def refresh_repo(repo_id: str) -> dict:
+    repo_record = _repos.get(repo_id)
+    if not repo_record:
+        raise HTTPException(404, "unknown repository")
+    repo_record.status, repo_record.error = "fetching", None
+    _fetch_pool.submit(_fetch_repo, repo_record)
+    return repo_record.to_dict()
+
+
+@app.delete("/api/repos/{repo_id}")
+def remove_repo(repo_id: str) -> dict:
+    with _lock:
+        repo_record = _repos.pop(repo_id, None)
+    if not repo_record:
+        raise HTTPException(404, "unknown repository")
+    if repo_record.root:
+        shutil.rmtree(repo_record.root, ignore_errors=True)
+    _save_repos()
+    return {"deleted": repo_id}
+
+
+def operations_catalog() -> list[dict]:
+    """Operation tiles: static rules, one review per model, explain, sandbox, pin."""
+    env = {**read_dotenv(DOTENV), **os.environ}
+    ops = [
+        {
+            "id": "static",
+            "label": "SkillSpector-MM",
+            "sub": "static rules + reveal · free",
+            "icon": "shield",
+            "kind": "review-static",
+            "ready": True,
+            "needs_model": False,
+        }
+    ]
+    for name in PROFILES:
+        ready, missing = profile_ready(name, env)
+        provider = PROFILES[name]["SKILLSPECTOR_PROVIDER"]
+        ops.append(
+            {
+                "id": f"model:{name}",
+                "label": PROFILE_LABELS.get(name, name).split(" (")[0],
+                "sub": {
+                    "anthropic": "hosted",
+                    "openai": "hosted",
+                    "nv_build": "open · hosted",
+                    "ollama": "open · local",
+                }.get(provider, provider)
+                + " · judge",
+                "icon": {"ollama": "chip", "nv_build": "cloud"}.get(provider, "spark"),
+                "kind": "review",
+                "profile": name,
+                "ready": ready,
+                "missing": missing,
+                "needs_model": False,
+            }
+        )
+    ops += [
+        {
+            "id": "explain",
+            "label": "Explain",
+            "sub": "plain English + coverage · slow",
+            "icon": "list",
+            "kind": "explain",
+            "ready": True,
+            "needs_model": True,
+        },
+        {
+            "id": "sandbox",
+            "label": "Sandbox",
+            "sub": "real agent, fake secrets",
+            "icon": "box",
+            "kind": "sandbox",
+            "ready": shutil.which("docker") is not None,
+            "missing": None if shutil.which("docker") else "docker",
+            "needs_model": True,
+        },
+        {
+            "id": "pin",
+            "label": "Pin",
+            "sub": "hash files for later verify",
+            "icon": "pin",
+            "kind": "pin",
+            "ready": True,
+            "needs_model": False,
+        },
+    ]
+    return ops
+
+
+@app.get("/api/operations")
+def operations() -> list[dict]:
+    return operations_catalog()
+
+
+class BatchRequest(BaseModel):
+    repos: list[str]
+    operations: list[str]
+    strict: bool = True
+    skills: dict[str, list[str]] | None = Field(
+        default=None, description="optional {repo_id: [skill paths]}; default all skills"
+    )
+
+
+@app.post("/api/batch")
+def run_batch(request: BatchRequest) -> dict:
+    catalog = {op["id"]: op for op in operations_catalog()}
+    chosen = [catalog[o] for o in request.operations if o in catalog]
+    if not chosen:
+        raise HTTPException(400, "select at least one operation")
+    not_ready = [op["label"] for op in chosen if not op["ready"]]
+    if not_ready:
+        raise HTTPException(400, f"not available: {', '.join(not_ready)}")
+    model_ops = [op for op in chosen if op["kind"] == "review"]
+    helper_profile = model_ops[0]["profile"] if model_ops else None
+    if helper_profile is None and any(op["needs_model"] for op in chosen):
+        ready_sol = catalog.get("model:sol-medium", {}).get("ready")
+        if not ready_sol:
+            raise HTTPException(400, "Explain and Sandbox need a model: select a model tile too")
+        helper_profile = "sol-medium"
+    batch_id = uuid.uuid4().hex[:8]
+    created: list[dict] = []
+    for repo_id in request.repos:
+        repo_record = _repos.get(repo_id)
+        if not repo_record or repo_record.status != "ready":
+            continue
+        wanted = (request.skills or {}).get(repo_id)
+        skills = [s for s in repo_record.skills if not wanted or s["path"] in wanted]
+        for op in chosen:
+            if op["kind"] == "pin":
+                job = Job(
+                    uuid.uuid4().hex[:12],
+                    repo_record.source,
+                    STATIC_PROFILE,
+                    request.strict,
+                    kind="pin",
+                    operation=op["id"],
+                    label=op["label"],
+                    repo_id=repo_id,
+                    repo_name=repo_record.name,
+                    skill="(whole repo)",
+                    batch_id=batch_id,
+                )
+                created.append(_enqueue(job).summary())
+                continue
+            profile = op.get("profile") or (helper_profile if op["needs_model"] else STATIC_PROFILE)
+            label = (
+                op["label"]
+                if not op["needs_model"]
+                else (f"{op['label']} · {PROFILE_LABELS.get(profile, profile).split(' (')[0]}")
+            )
+            for skill in skills:
+                target = str(Path(repo_record.root) / skill["path"])
+                job = Job(
+                    uuid.uuid4().hex[:12],
+                    repo_record.source,
+                    profile,
+                    request.strict,
+                    kind=op["kind"],
+                    operation=op["id"],
+                    label=label,
+                    repo_id=repo_id,
+                    repo_name=repo_record.name,
+                    skill=skill["name"],
+                    target=target,
+                    batch_id=batch_id,
+                )
+                created.append(_enqueue(job).summary())
+    if not created:
+        raise HTTPException(400, "no ready repositories selected")
+    return {"batch_id": batch_id, "tasks": created}
+
+
+@app.post("/api/jobs/{job_id}/cancel")
+def cancel_job(job_id: str) -> dict:
+    found = _jobs.get(job_id)
+    if not found:
+        raise HTTPException(404, "unknown job")
+    if found.status in {"queued", "running"}:
+        found.status = "cancelled"
+        found.error = "cancelled by the user"
+        if process := _processes.get(job_id):
+            process.kill()
+        found.finished = time.time()
+        _save(found)
+    return found.summary()
+
+
 load_history()
+load_repos()
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
