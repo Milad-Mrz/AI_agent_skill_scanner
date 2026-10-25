@@ -38,6 +38,7 @@ EXPECTED_ANALYZER_NODE_IDS: list[str] = [
     "static_patterns_anti_refusal",
     "static_patterns_ssrf",
     "static_patterns_deserialization",
+    "static_fork_gaps",  # fork: docs/COVERAGE_AUDIT.md gap rules FG1-FG12
     "static_yara",
     "behavioral_ast",
     "behavioral_taint_tracking",
