@@ -93,7 +93,10 @@ Each item: first check what upstream already covers, then add only what's missin
 | 7 | `feat/pin-rescan` | §3.6 | 0 |
 | 8 | `sandbox/` | §3.7 | 3 |
 
-## 5. Open decisions
-1. UI: Streamlit or FastAPI with a web front end?
-2. LLM provider for development: native `anthropic` with Sonnet 5.5? Upstream marks Claude 5.5 as opt-in pending its acceptance tests.
-3. Offer generic features (strict mode, GuardFall normalization) back to NVIDIA?
+## 5. Decisions (2026-10-25)
+1. UI: **FastAPI**.
+2. LLM profiles (`src/skillspector/ext/llm_profiles.py`, used by `eval/run_probes.py --profile` and the future UI):
+   - `sonnet`: provider `anthropic`, model `claude-sonnet-5-5` (default)
+   - `sol-medium`: provider `openai`, model `gpt-6.1-sol`, `SKILLSPECTOR_REASONING_EFFORT=medium`
+   Keys come from the environment or the gitignored `.env` (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY`).
+3. Upstream PRs to NVIDIA: not at this point.
