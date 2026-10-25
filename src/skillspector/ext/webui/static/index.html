@@ -14,7 +14,7 @@
     <button class="tab active" data-tab="batch">Scan</button>
     <button class="tab" data-tab="search">Search GitHub</button>
     <button class="tab" data-tab="pins">Pins</button>
-    <button class="tab" data-tab="history">History</button>
+    <button class="tab" data-tab="history">Skill Library</button>
     <button id="theme-toggle" class="theme-btn" type="button" title="Switch colour theme">☾ Dark</button>
   </nav>
 </header>
@@ -49,6 +49,7 @@
       <div class="findings-head"><h2 class="step"><span class="step-n">3</span> Runs</h2>
         <span class="runs-tools"><span id="queue-summary" class="hint"></span>
           <button id="stop-all" class="danger" type="button" title="Stop running tasks and clear the waiting list">Stop all</button></span></div>
+      <details id="usage" class="usage-panel"><summary>API usage</summary></details>
       <div id="runs"></div>
     </div>
 
@@ -69,9 +70,13 @@
 
   <section id="tab-history" class="panel hidden">
     <div class="card">
-      <div class="findings-head"><h2 class="step">History</h2>
-        <input id="history-filter" type="text" placeholder="Filter by link or skill" autocomplete="off"></div>
-      <p class="hint">Every link you scanned, with its skills and the latest result of each method. Click a link or a skill to see all results together.</p>
+      <div class="findings-head"><h2 class="step">Skill Library</h2>
+        <input id="history-filter" type="text" placeholder="Filter by repository or skill" autocomplete="off"></div>
+      <p class="hint">Decide which skills to keep. A skill's colour is its worst verdict across every method you ran:
+        <span class="dot SAFE"></span> safe, <span class="dot CAUTION"></span> caution, <span class="dot DO_NOT_INSTALL"></span> do not install, <span class="dot none"></span> not scanned.
+        Deleted skills leave the library and the export. A repository is <strong>cleaned</strong> when every remaining skill is green.
+        Manage scans (remove, redo, change method) on the Scan page.</p>
+      <label class="check"><input id="show-deleted" type="checkbox"> Show deleted skills</label>
       <div id="history"></div>
     </div>
     <div id="history-detail"></div>

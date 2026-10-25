@@ -20,7 +20,13 @@ python -m skillspector.ext.webui     # http://127.0.0.1:8765  (localhost only)
    - **Queue:** LLM tasks run one at a time (`SKILLSPECTOR_UI_LLM_WORKERS`) to avoid provider throttling. Static tasks run three at a time.
    - **Adding more:** add repositories and click Run again while tasks run; new tasks join the waiting list. Queued or running tasks can be cancelled.
    - **Time limit:** 2400 s per task (`SKILLSPECTOR_UI_TASK_TIMEOUT`). A timeout now reports the stage it stopped in.
-4. **Themes:** the header button switches between light (white background, blue buttons, black text, the default) and dark (black background, green buttons, white text). The choice is remembered in the browser.
+4. **Runs** are grouped by repository link.
+   - **Expanding a repository** lists its skills, and each skill lists its runs.
+   - **Per repository:** *Run selected methods* (change method), *Redo failed*, *Stop* and *Remove scans*.
+   - **Per task:** *Open*, *Redo* and *Cancel*.
+   - **Tokens and cost:** every task shows its token count and estimated cost. The **API usage** panel totals tokens and estimated cost per model.
+   - **Prices:** estimates use list prices that you can edit in `~/.local/share/skill-scanner/pricing.json`. Provider dashboards show the actual bill.
+5. **Themes:** the header button switches between light (white background, blue buttons, black text, the default) and dark (black background, green buttons, white text). The choice is remembered in the browser.
 
 ## Features
 - **Scan:** a Git/HTTPS URL, a local path, or an uploaded `.zip` or `.md` file.
@@ -46,7 +52,13 @@ python -m skillspector.ext.webui     # http://127.0.0.1:8765  (localhost only)
 - **Export JSON:** downloads the full report.
 - **Search GitHub:** uses repository metadata only and computes a trust score (age, star growth, forks, issues, owner type, license, and contributors via "Details"). "Scan" sends a repository straight to the scanner.
 - **Pin this version** (on a finished scan) and the **Pins** tab: a pin stores the commit and a SHA-256 hash of every file (`~/.local/share/skill-scanner/pins/`). **Verify** fetches the source again and lists changed, added and removed files, which catches a skill that changes after review. The same works from the command line: `python -m skillspector.ext.pin pin|verify|list`.
-- **History:** grouped by link, across all runs.
+- **Skill Library** (formerly History): decide which skills to keep.
+  - **Colours:** each skill shows its worst verdict across every method (green, yellow or red, or empty when not scanned).
+  - **Group deletes:** *Delete red*, *Delete red + yellow*, *Delete selected*, *Keep selected* and *Restore all*.
+  - **Cleaned:** a repository is marked **CLEANED** when every remaining skill is green.
+  - **Export kept skills:** a zip of the remaining skills plus `SKILL_REVIEW.json` (the verdicts, and the list of removed skills).
+  - **Separation from scans:** deleting in the library doesn't remove scan results. Scans are managed on the Scan page.
+- **Combined results:** grouped by link, across all runs.
   - Each link lists its skills with the latest verdict of every method and the merged severity counts.
   - **View all results** (or a click on one skill) opens a combined view, with:
     - a card per method (score, verdict, date, link to the full report)

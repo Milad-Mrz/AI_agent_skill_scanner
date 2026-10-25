@@ -26,6 +26,32 @@ _OBEDIENCE = re.compile(
 )
 
 
+# Token usage of every call in this process, per stage (read by review.py).
+USAGE: list[dict] = []
+
+
+def _record_usage(stage: str, message: object) -> None:
+    meta = getattr(message, "usage_metadata", None) or {}
+    if not meta:
+        response = getattr(message, "response_metadata", None) or {}
+        token_usage = response.get("token_usage") or response.get("usage") or {}
+        meta = {
+            "input_tokens": token_usage.get("prompt_tokens")
+            or token_usage.get("input_tokens")
+            or 0,
+            "output_tokens": token_usage.get("completion_tokens")
+            or token_usage.get("output_tokens")
+            or 0,
+        }
+    USAGE.append(
+        {
+            "stage": stage,
+            "input_tokens": int(meta.get("input_tokens") or 0),
+            "output_tokens": int(meta.get("output_tokens") or 0),
+        }
+    )
+
+
 @dataclass
 class CallResult:
     value: BaseModel | None
@@ -52,7 +78,9 @@ def _extract_json(text: str) -> str:
     return text[start : end + 1] if start != -1 and end > start else text
 
 
-def structured_call(prompt: str, schema: type[BaseModel], *, timeout: float = 240) -> CallResult:
+def structured_call(
+    prompt: str, schema: type[BaseModel], *, timeout: float = 240, stage: str = "llm"
+) -> CallResult:
     """Call the active provider's model and validate the answer against ``schema``."""
     try:
         model = get_chat_model(timeout=timeout)
@@ -61,8 +89,16 @@ def structured_call(prompt: str, schema: type[BaseModel], *, timeout: float = 24
 
     raw = ""
     try:
-        structured = model.with_structured_output(schema)
+        try:
+            structured = model.with_structured_output(schema, include_raw=True)
+        except TypeError:  # adapters without include_raw
+            structured = model.with_structured_output(schema)
         value = structured.invoke(prompt)
+        if isinstance(value, dict) and "parsed" in value and "raw" in value:
+            _record_usage(stage, value["raw"])
+            if value.get("parsing_error") or value["parsed"] is None:
+                raise ValueError(f"parsing failed: {value.get('parsing_error')}")
+            value = value["parsed"]
         if isinstance(value, dict):
             value = schema.model_validate(value)
         raw = value.model_dump_json() if isinstance(value, BaseModel) else str(value)
@@ -73,6 +109,7 @@ def structured_call(prompt: str, schema: type[BaseModel], *, timeout: float = 24
                 + "\n\nReturn ONLY one JSON object matching this JSON schema:\n"
                 + json.dumps(schema.model_json_schema())
             )
+            _record_usage(stage, reply)
             raw = getattr(reply, "content", reply)
             raw = raw if isinstance(raw, str) else json.dumps(raw)
             value = schema.model_validate_json(_extract_json(raw))

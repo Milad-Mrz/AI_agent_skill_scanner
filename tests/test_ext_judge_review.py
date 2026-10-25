@@ -45,7 +45,9 @@ def test_judge_keeps_grounded_and_drops_invented(monkeypatch: pytest.MonkeyPatch
             _finding("invented quote"),
         ],
     )
-    monkeypatch.setattr(judge_mod, "structured_call", lambda prompt, schema: CallResult(verdict))
+    monkeypatch.setattr(
+        judge_mod, "structured_call", lambda prompt, schema, **_: CallResult(verdict)
+    )
     out = judge_mod.judge([reveal_text(TEXT, "SKILL.md")], {"SKILL.md": TEXT})
     assert [f["id"] for f in out.findings] == ["BJ-1"]
     assert out.findings[0]["location"]["start_line"] == 4
@@ -54,7 +56,9 @@ def test_judge_keeps_grounded_and_drops_invented(monkeypatch: pytest.MonkeyPatch
 
 
 def test_judge_reports_model_errors(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(judge_mod, "structured_call", lambda p, s: CallResult(None, error="down"))
+    monkeypatch.setattr(
+        judge_mod, "structured_call", lambda p, s, **_: CallResult(None, error="down")
+    )
     assert judge_mod.judge([reveal_text(TEXT, "SKILL.md")]).error == "down"
 
 

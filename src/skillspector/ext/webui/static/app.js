@@ -177,6 +177,25 @@ async function loadJobs() {
   jobs = await api("/api/jobs");
   renderRuns();
 }
+function fmtTokens(n) { return n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n); }
+
+async function loadUsage() {
+  let u;
+  try { u = await api("/api/usage"); } catch (_) { return; }
+  const box = $("#usage");
+  const total = u.models.length
+    ? `API usage ≈ $${u.total_cost_usd.toFixed(2)}`
+    : "API usage: none yet";
+  box.replaceChildren(el("summary", {}, el("strong", { text: total }), el("span", { class: "desc", text: " estimated from token counts" })),
+    el("div", { class: "table-wrap" }, el("table", {},
+      el("thead", {}, el("tr", {}, ...["Model", "Provider", "Tasks", "Input tokens", "Output tokens", "Est. cost"].map((t) => el("th", { text: t })))),
+      el("tbody", {}, ...u.models.map((m) => el("tr", {},
+        el("td", { text: m.model }), el("td", { text: m.provider || "" }), el("td", { class: "num", text: String(m.tasks) }),
+        el("td", { class: "num", text: fmtTokens(m.input_tokens) }), el("td", { class: "num", text: fmtTokens(m.output_tokens) }),
+        el("td", { class: "num", text: m.priced ? `$${m.cost_usd.toFixed(3)}` : "price unknown" })))))),
+    el("p", { class: "hint", text: `Estimates use list prices per million tokens (input / output): ${Object.entries(u.prices).map(([k, v]) => `${k} $${v[0]}/$${v[1]}`).join(" · ")}. Edit ${u.pricing_file} to change them. Provider dashboards show the actual bill.` }));
+}
+
 function fmtSecs(s) { s = Math.max(0, Math.round(s)); return s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`; }
 const REC_ORDER = ["DO_NOT_INSTALL", "CAUTION", "SAFE"];
 const FINISHED = ["done", "error", "cancelled", "interrupted"];
@@ -208,51 +227,73 @@ function renderRuns() {
   const running = jobs.filter((j) => j.status === "running").length;
   $("#queue-summary").textContent = `${running} running · ${queued.length} waiting · ${jobs.filter((j) => j.status === "done").length} done`;
   $("#stop-all").disabled = !(running || queued.length);
-  const batchesMap = new Map();
+  const bySource = new Map();
   for (const j of jobs) {
-    const key = j.batch_id || `single-${j.id}`;
-    if (!batchesMap.has(key)) batchesMap.set(key, []);
-    batchesMap.get(key).push(j);
+    if (!bySource.has(j.source)) bySource.set(j.source, []);
+    bySource.get(j.source).push(j);
   }
-  const ordered = [...batchesMap.entries()].sort((a, b) =>
+  const ordered = [...bySource.entries()].sort((a, b) =>
     Math.max(...b[1].map((j) => j.started)) - Math.max(...a[1].map((j) => j.started)));
-  for (const [key, tasks] of ordered.slice(0, 20)) box.append(batchBlock(key, tasks, queued));
+  for (const [source, tasks] of ordered) box.append(sourceBlock(source, tasks, queued));
+  loadUsage();
 }
 
-function batchBlock(key, tasks, queued) {
+const openSources = new Set();
+const closedSources = new Set();
+function sourceBlock(source, tasks, queued) {
   const done = tasks.filter((j) => FINISHED.includes(j.status)).length;
-  const worst = worstOf(tasks.map((j) => j.recommendation));
-  const when = new Date(Math.min(...tasks.map((j) => j.started)) * 1000).toLocaleString();
+  const active = tasks.some((j) => j.status === "queued" || j.status === "running");
+  const failed = tasks.some((j) => ["error", "cancelled", "interrupted"].includes(j.status));
+  const latestPerItemOp = new Map();
+  for (const j of [...tasks].sort((a, b) => a.started - b.started)) latestPerItemOp.set(`${j.skill}|${j.operation}`, j);
+  const worst = worstOf([...latestPerItemOp.values()].map((j) => j.recommendation));
+  const cost = tasks.reduce((n, j) => n + (j.usage?.cost_usd || 0), 0);
+  const repo = repos.find((r) => r.source === source);
+  const name = tasks[0].repo_name || source;
   const itemsMap = new Map();
   for (const j of tasks) {
-    const k = `${j.repo_id || j.repo_name}|${j.skill || j.repo_name}`;
+    const k = j.skill || j.repo_name;
     if (!itemsMap.has(k)) itemsMap.set(k, []);
     itemsMap.get(k).push(j);
   }
-  const items = [...itemsMap.entries()].sort((a, b) => (a[1][0].skill || "").localeCompare(b[1][0].skill || ""));
-  const active = tasks.some((j) => j.status === "queued" || j.status === "running");
-  const stop = active && !key.startsWith("single-")
-    ? el("button", { class: "danger", text: "Stop", title: "Stop this run's running and waiting tasks" }) : "";
-  if (stop) stop.addEventListener("click", async (e) => {
-    e.preventDefault(); e.stopPropagation();
-    await api(`/api/batches/${encodeURIComponent(key)}/stop`, { method: "POST" });
-    loadJobs();
+  const items = [...itemsMap.entries()].sort((a, b) => (a[0].startsWith("(") - b[0].startsWith("(")) || a[0].localeCompare(b[0]));
+
+  const actions = el("span", { class: "batch-actions" });
+  const button = (text, cls, title, fn) => {
+    const b = el("button", { class: cls, text, title });
+    b.addEventListener("click", async (e) => { e.preventDefault(); e.stopPropagation(); await fn(b); loadJobs(); });
+    actions.append(b);
+  };
+  if (repo && repo.status === "ready") button("Run selected methods", "", "Run the operations selected above on this repository (change method)", async (b) => {
+    if (!selectedOps.size) { b.textContent = "select operations above"; return; }
+    try {
+      await api("/api/batch", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repos: [repo.id], operations: [...selectedOps], strict: $("#strict").checked }) });
+    } catch (err) { b.textContent = err.message.slice(0, 60); }
   });
-  const remove = el("button", { class: "danger", text: "Delete run", title: "Delete this run and stop its unfinished tasks" });
-  remove.addEventListener("click", async (e) => {
-    e.preventDefault(); e.stopPropagation();
-    if (!confirmInline(remove, "Click again to delete")) return;
-    await api(`/api/batches/${encodeURIComponent(key)}`, { method: "DELETE" });
-    loadJobs();
+  if (failed) button("Redo failed", "", "Queue failed or stopped tasks again", async () => {
+    await api(`/api/redo-failed?${new URLSearchParams({ source })}`, { method: "POST" });
   });
+  if (active) button("Stop", "danger", "Stop this repository's running and waiting tasks", async () => {
+    await Promise.all(tasks.filter((j) => j.status === "queued" || j.status === "running")
+      .map((j) => api(`/api/jobs/${j.id}/cancel`, { method: "POST" })));
+  });
+  button("Remove scans", "danger", "Delete every scan of this repository (the skill library keeps the skills)", async (b) => {
+    if (!confirmInline(b, "Click again to remove")) return;
+    await api(`/api/history?${new URLSearchParams({ source })}`, { method: "DELETE" });
+  });
+
   const group = el("details", { class: "batch" }, el("summary", {},
-    el("span", { class: "ftitle", text: key.startsWith("single-") ? `Single scan · ${when}` : `Run ${key} · ${when}` }),
-    el("span", { class: "rule", text: `${items.length} item(s) · ${done}/${tasks.length} tasks finished` }),
+    icon(/^https?:\/\//.test(source) ? "github" : "folder"),
+    el("span", { class: "ftitle" }, el("strong", { text: name }), el("span", { class: "desc", text: ` ${items.length} skill(s)` })),
+    el("span", { class: "rule", text: `${done}/${tasks.length} tasks${cost ? ` · ≈ $${cost.toFixed(2)}` : ""}` }),
     worst ? el("span", { class: `rec-badge ${worst}`, text: worst.replaceAll("_", " ") }) : "",
-    el("span", { class: "batch-actions" }, stop, remove)),
-    el("div", { class: "item-list" }, ...items.map(([k, its]) => itemBlock(key, k, its, queued))));
-  group.open = !closedBatches.has(key);
-  group.addEventListener("toggle", () => { group.open ? closedBatches.delete(key) : closedBatches.add(key); });
+    actions),
+    el("div", { class: "item-list" }, ...items.map(([k, its]) => itemBlock(source, k, its, queued))));
+  group.open = active ? !closedSources.has(source) : openSources.has(source);
+  group.addEventListener("toggle", () => {
+    if (group.open) { openSources.add(source); closedSources.delete(source); } else { openSources.delete(source); closedSources.add(source); }
+  });
   return group;
 }
 
@@ -280,9 +321,7 @@ function itemBlock(batchKey, itemKey, tasks, queued) {
   const remove = el("button", { class: "icon-btn", text: "×", title: "Delete this item's runs" });
   remove.addEventListener("click", async () => {
     if (!confirmInline(remove, "delete?")) return;
-    const params = new URLSearchParams({ skill: first.skill || "" });
-    if (first.repo_id) params.set("repo_id", first.repo_id);
-    await api(`/api/batches/${encodeURIComponent(batchKey)}?${params}`, { method: "DELETE" });
+    await Promise.all(tasks.map((j) => api(`/api/jobs/${j.id}`, { method: "DELETE" })));
     loadJobs();
   });
 
@@ -327,10 +366,15 @@ function taskRow(j, queued) {
     : el("span", { class: "rec-badge", text: j.status });
   const actions = el("span", { class: "task-actions" });
   if (j.status === "done") actions.append(el("button", { text: "Open", onclick: () => openTask(j.id) }));
+  if (FINISHED.includes(j.status)) actions.append(el("button", { text: "Redo", title: "Run this operation again", onclick: async (e) => {
+    try { await api(`/api/jobs/${j.id}/redo`, { method: "POST" }); loadJobs(); } catch (err) { e.target.textContent = err.message.slice(0, 40); }
+  } }));
   if (j.status === "queued" || j.status === "running") actions.append(el("button", { text: "Cancel", onclick: async () => { await api(`/api/jobs/${j.id}/cancel`, { method: "POST" }); loadJobs(); } }));
   const row = el("div", { class: "task sub" + (j.status === "running" ? " running" : "") },
     el("span", { class: "op-chip", text: j.label || j.operation }),
-    chips, el("span", { class: "num", text: time }), result, actions);
+    chips, el("span", { class: "num", text: time },
+      j.usage ? el("span", { class: "usage", text: `${fmtTokens(j.usage.input_tokens + j.usage.output_tokens)} tok${j.usage.cost_usd != null ? ` · $${j.usage.cost_usd.toFixed(3)}` : ""}` }) : ""),
+    result, actions);
   if (j.error && j.status === "error") row.append(el("div", { class: "task-error", text: j.error }));
   return row;
 }
@@ -668,76 +712,100 @@ function repoRow(r) {
   return row;
 }
 
-// ---- history: grouped by link, combined results ----
-const openLinks = new Set();
+// ---- skill library ----
+const openLibrary = new Set();
+const selectedSkills = new Map(); // repo id -> Set(skill path)
 async function loadHistory() {
   const box = $("#history");
-  const all = (await api("/api/jobs")).filter((j) => j.source);
+  let lib;
+  try { lib = await api("/api/library"); } catch (err) { box.replaceChildren(el("div", { class: "empty", text: err.message })); return; }
   const filter = ($("#history-filter").value || "").toLowerCase();
-  const links = new Map();
-  for (const j of all) {
-    if (!links.has(j.source)) links.set(j.source, []);
-    links.get(j.source).push(j);
-  }
-  const rows = [...links.entries()]
-    .filter(([src, js]) => !filter || src.toLowerCase().includes(filter) || js.some((j) => (j.skill || "").toLowerCase().includes(filter)))
-    .sort((a, b) => Math.max(...b[1].map((j) => j.finished || j.started)) - Math.max(...a[1].map((j) => j.finished || j.started)));
-  if (!rows.length) { box.replaceChildren(el("div", { class: "empty", text: all.length ? "No link matches the filter." : "No scans yet." })); return; }
-  box.replaceChildren(...rows.map(([source, js]) => linkBlock(source, js, filter)));
+  const showDeleted = $("#show-deleted").checked;
+  const shown = lib.filter((r) => !filter || r.source.toLowerCase().includes(filter) || r.name.toLowerCase().includes(filter)
+    || r.skills.some((s) => s.name.toLowerCase().includes(filter)));
+  if (!shown.length) { box.replaceChildren(el("div", { class: "empty", text: lib.length ? "Nothing matches the filter." : "No repositories yet. Add them on the Scan page." })); return; }
+  box.replaceChildren(...shown.map((r) => libraryBlock(r, filter, showDeleted)));
 }
 $("#history-filter").addEventListener("input", () => loadHistory());
+$("#show-deleted").addEventListener("change", () => loadHistory());
 
-function linkBlock(source, js, filter) {
-  const done = js.filter((j) => j.status === "done");
-  const skills = new Map();
-  for (const j of js) {
-    const name = j.skill || j.repo_name || source;
-    if (!skills.has(name)) skills.set(name, []);
-    skills.get(name).push(j);
-  }
-  const methods = [...new Set(done.map((j) => j.label || j.operation))];
-  const worst = worstOf(done.map((j) => j.recommendation));
-  const last = Math.max(...js.map((j) => j.finished || j.started));
-  const name = js[0].repo_name || source;
-  const view = el("button", { class: "primary", text: "View all results" });
-  view.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); showCombined(source, null); });
-  const remove = el("button", { class: "danger", text: "Delete", title: "Delete every result for this link" });
-  remove.addEventListener("click", async (e) => {
-    e.preventDefault(); e.stopPropagation();
-    if (!confirmInline(remove, "Click again to delete")) return;
-    await api(`/api/history?${new URLSearchParams({ source })}`, { method: "DELETE" });
-    loadHistory();
-  });
-  const skillRows = [...skills.entries()]
-    .filter(([sk]) => !filter || sk.toLowerCase().includes(filter) || source.toLowerCase().includes(filter))
-    .sort((a, b) => (a[0].startsWith("(") - b[0].startsWith("(")) || a[0].localeCompare(b[0]))
-    .map(([sk, runs]) => {
-      const latest = new Map();
-      for (const j of runs.filter((r) => r.status === "done").sort((a, b) => (a.finished || 0) - (b.finished || 0))) latest.set(j.label || j.operation, j);
-      const issues = mergeIssues([...latest.values()]);
-      const counts = SEV_ORDER.map((sev) => [sev, issues.filter((i) => i.sev === sev).length]).filter(([, n]) => n);
-      const w = worstOf([...latest.values()].map((j) => j.recommendation));
-      const row = el("div", { class: "item-head clickable", title: "Show all results for this skill" },
-        el("span", { class: "task-name" }, el("strong", { text: sk })),
-        el("span", { class: "sev-counts" }, ...counts.map(([sev, n]) => el("span", { class: `sev-mini ${sev}`, text: `${n} ${sev.toLowerCase()}` }))),
-        el("span", { class: "method-badges" }, ...[...latest.values()].map((j) =>
-          el("span", { class: `rec-badge ${j.recommendation || ""}`, text: `${j.label || j.operation}: ${j.score ?? "–"}` }))),
-        w ? el("span", { class: `rec-badge ${w}`, text: w.replaceAll("_", " ") }) : el("span", { class: "desc", text: runs.some((r) => r.status === "running" || r.status === "queued") ? "running…" : "no result" }),
-        el("span"));
-      row.addEventListener("click", () => latest.size && showCombined(source, sk));
-      return row;
+function libraryBlock(r, filter, showDeleted) {
+  const remaining = r.skills.filter((s) => s.state !== "deleted");
+  const count = (rec) => remaining.filter((s) => s.recommendation === rec).length;
+  const red = count("DO_NOT_INSTALL"), yellow = count("CAUTION"), green = count("SAFE");
+  const selected = selectedSkills.get(r.id) || new Set();
+  selectedSkills.set(r.id, selected);
+
+  const act = async (body, button) => {
+    try {
+      const res = await api(`/api/library/${r.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (button) button.textContent = `${res.changed} changed`;
+      selected.clear();
+      loadHistory();
+    } catch (err) { if (button) button.textContent = err.message.slice(0, 50); }
+  };
+  const groupButton = (text, cls, title, body, confirmText) => {
+    const b = el("button", { class: cls, text, title });
+    b.addEventListener("click", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (confirmText && !confirmInline(b, confirmText)) return;
+      act(typeof body === "function" ? body() : body, b);
     });
-  const block = el("details", { class: "batch" },
+    return b;
+  };
+  const exportLink = el("a", { class: "btn-like", href: `/api/library/${r.id}/export`, text: "Export kept skills (.zip)",
+    title: "Download the remaining skills with a verdict manifest" });
+  exportLink.addEventListener("click", (e) => e.stopPropagation());
+
+  const actions = el("div", { class: "lib-actions" },
+    red ? groupButton(`Delete red (${red})`, "danger", "Delete every do-not-install skill", { action: "delete", mode: "red" }, "Click again to delete") : "",
+    red + yellow ? groupButton(`Delete red + yellow (${red + yellow})`, "danger", "Delete every skill that is not green", { action: "delete", mode: "red_yellow" }, "Click again to delete") : "",
+    groupButton("Delete selected", "danger", "Delete the ticked skills", () => ({ action: "delete", mode: "selected", skills: [...selected] })),
+    groupButton("Keep selected", "", "Mark the ticked skills as reviewed and kept", () => ({ action: "keep", mode: "selected", skills: [...selected] })),
+    r.deleted ? groupButton(`Restore all (${r.deleted})`, "", "Bring back every deleted skill", { action: "restore", mode: "all" }) : "",
+    exportLink);
+
+  const status = r.cleaned
+    ? el("span", { class: "rec-badge SAFE big", text: "✓ CLEANED" })
+    : el("span", { class: "rec-badge", text: r.unscanned ? `${r.unscanned} not scanned` : "needs review" });
+  const rows = r.skills
+    .filter((s) => (showDeleted || s.state !== "deleted") && (!filter || r.name.toLowerCase().includes(filter) || s.name.toLowerCase().includes(filter)))
+    .map((s) => librarySkillRow(r, s, selected, act));
+  const block = el("details", { class: "batch library" + (r.cleaned ? " cleaned" : "") },
     el("summary", {},
-      icon(/^https?:\/\//.test(source) ? "github" : "folder"),
-      el("span", { class: "ftitle" }, el("strong", { text: name }), el("span", { class: "desc", text: ` ${source}` })),
-      el("span", { class: "rule", text: `${skills.size} skill(s) · ${methods.length} method(s) · ${new Date(last * 1000).toLocaleString()}` }),
-      worst ? el("span", { class: `rec-badge ${worst}`, text: worst.replaceAll("_", " ") }) : "",
-      el("span", { class: "batch-actions" }, done.length ? view : "", remove)),
-    el("div", { class: "item-list" }, ...skillRows));
-  block.open = openLinks.has(source) || !!filter;
-  block.addEventListener("toggle", () => { block.open ? openLinks.add(source) : openLinks.delete(source); });
+      icon(/^https?:\/\//.test(r.source) ? "github" : "folder"),
+      el("span", { class: "ftitle" }, el("strong", { text: r.name }), el("span", { class: "desc", text: ` ${r.remaining} skill(s) kept${r.deleted ? ` · ${r.deleted} deleted` : ""}` })),
+      el("span", { class: "sev-counts" },
+        red ? el("span", { class: "sev-mini CRITICAL", text: `${red} red` }) : "",
+        yellow ? el("span", { class: "sev-mini MEDIUM", text: `${yellow} yellow` }) : "",
+        green ? el("span", { class: "sev-mini LOW", text: `${green} green` }) : ""),
+      status,
+      el("button", { class: "link", text: "view all results", onclick: (e) => { e.preventDefault(); e.stopPropagation(); showCombined(r.source, null); } })),
+    actions,
+    el("div", { class: "item-list" }, ...rows));
+  block.open = openLibrary.has(r.id) || !!filter;
+  block.addEventListener("toggle", () => { block.open ? openLibrary.add(r.id) : openLibrary.delete(r.id); });
   return block;
+}
+
+function librarySkillRow(r, s, selected, act) {
+  const box = el("input", { type: "checkbox", title: "Select" });
+  box.checked = selected.has(s.path);
+  box.addEventListener("click", (e) => e.stopPropagation());
+  box.addEventListener("change", () => { box.checked ? selected.add(s.path) : selected.delete(s.path); });
+  const counts = SEV_ORDER.filter((sev) => s.counts[sev]).map((sev) => el("span", { class: `sev-mini ${sev}`, text: `${s.counts[sev]} ${sev.toLowerCase()}` }));
+  const single = s.state === "deleted"
+    ? el("button", { text: "Restore", onclick: (e) => { e.stopPropagation(); act({ action: "restore", mode: "selected", skills: [s.path] }); } })
+    : el("button", { class: "icon-btn", text: "×", title: "Delete this skill", onclick: (e) => { e.stopPropagation(); act({ action: "delete", mode: "selected", skills: [s.path] }); } });
+  const row = el("div", { class: "item-head clickable lib-row" + (s.state === "deleted" ? " deleted" : ""), title: "Show all results for this skill" },
+    el("span", { class: "lib-check" }, box, el("span", { class: `dot ${s.recommendation || "none"}` })),
+    el("span", { class: "task-name" }, el("strong", { text: s.name }), el("span", { class: "desc", text: s.path })),
+    el("span", { class: "sev-counts" }, ...counts),
+    el("span", { class: "method-badges" }, ...s.methods.map((m) => el("span", { class: `rec-badge ${m.recommendation || ""}`, text: `${m.label}: ${m.score ?? "–"}` }))),
+    el("span", { class: "lib-state" }, s.state === "kept" ? el("span", { class: "rec-badge SAFE", text: "kept" }) : s.state === "deleted" ? el("span", { class: "rec-badge DO_NOT_INSTALL", text: "deleted" }) : ""),
+    el("span", { class: "task-actions" }, single));
+  row.addEventListener("click", () => s.methods.length && showCombined(r.source, s.name));
+  return row;
 }
 
 async function showCombined(source, skill) {

@@ -161,7 +161,7 @@ def explain(files: list[RevealedFile]) -> Explanation:
     if not files:
         return Explanation(error="no text files to explain")
     prompt, included = build_prompt(files)
-    result = structured_call(prompt, InstructionList)
+    result = structured_call(prompt, InstructionList, stage="explain")
     if result.value is None:
         return Explanation(error=result.error, coverage=coverage_for(included, []))
     listing: InstructionList = result.value  # type: ignore[assignment]
