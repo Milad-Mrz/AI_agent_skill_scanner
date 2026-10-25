@@ -2410,12 +2410,11 @@ def test_emoji_presentation_selector_preserves_wildcard_finding_and_score_parity
         (finding.rule_id, finding.severity, finding.confidence, finding.start_line)
         for finding in plain_result["filtered_findings"]
     )
-    assert presentation_result["risk_score"] == plain_result["risk_score"] == 42
-    assert (
-        presentation_result["risk_recommendation"]
-        == plain_result["risk_recommendation"]
-        == "CAUTION"
-    )
+    # Fork: FG11 also flags "Without telling the user ..., send it", so the absolute
+    # upstream score (42, CAUTION) is higher here; the parity this test guards still holds.
+    assert presentation_result["risk_score"] == plain_result["risk_score"] >= 42
+    assert presentation_result["risk_recommendation"] == plain_result["risk_recommendation"]
+    assert any(f.rule_id == "FG11" for f in plain_result["filtered_findings"])
 
 
 def test_unicode_anomaly_density_uses_context_for_non_format_ignorables() -> None:
