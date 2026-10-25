@@ -31,6 +31,7 @@ function showTab(name) {
   document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
   document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("hidden", p.id !== `tab-${name}`));
   if (name === "history") loadHistory();
+  if (name === "pins") loadPins();
 }
 
 // ---- profiles ----
@@ -194,6 +195,15 @@ function renderReport(job) {
     const a = el("a", { href: URL.createObjectURL(blob), download: `skill-review-${job.id}.json` });
     a.click();
     URL.revokeObjectURL(a.href);
+  });
+
+  const pinButton = $(".pin", root);
+  pinButton.addEventListener("click", async () => {
+    pinButton.disabled = true;
+    try {
+      const p = await api(`/api/jobs/${job.id}/pin`, { method: "POST" });
+      pinButton.textContent = `Pinned as ${p.name} (${p.file_count} files)`;
+    } catch (err) { pinButton.textContent = `Pin failed: ${err.message}`; pinButton.disabled = false; }
   });
 
   // sub-tabs
@@ -420,3 +430,35 @@ async function loadHistory() {
 }
 
 loadProfiles().catch((err) => { $("#profile-hint").textContent = `Could not load profiles: ${err.message}`; });
+
+// ---- pins ----
+async function loadPins() {
+  const box = $("#pins");
+  const list = await api("/api/pins");
+  if (!list.length) { box.replaceChildren(el("div", { class: "empty", text: "No pins yet. Open a finished scan and click Pin this version." })); return; }
+  const tbody = el("tbody");
+  for (const p of list) {
+    const status = el("td", { text: "–" });
+    tbody.append(el("tr", {},
+      el("td", { text: p.name }),
+      el("td", { class: "desc", text: p.source }),
+      el("td", { class: "num", text: new Date(p.pinned_at * 1000).toLocaleString() }),
+      el("td", { class: "num", text: (p.commit || "-").slice(0, 10) }),
+      el("td", { text: p.verdict ? `${p.verdict.score} · ${(p.verdict.recommendation || "").replaceAll("_", " ")}` : "" }),
+      status,
+      el("td", {}, el("button", { text: "Verify", onclick: async (e) => {
+        e.target.disabled = true;
+        status.replaceChildren(el("span", { class: "spinner" }));
+        try {
+          const d = await api(`/api/pins/${encodeURIComponent(p.name)}/verify`, { method: "POST" });
+          status.replaceChildren(d.clean
+            ? el("span", { class: "cov", text: "unchanged" })
+            : el("span", { class: "cov warn", text: `CHANGED: ${d.changed.length} modified, ${d.added.length} added, ${d.removed.length} removed${d.new_commit !== d.old_commit ? " · new commit " + (d.new_commit || "?").slice(0, 10) : ""}` }));
+        } catch (err) { status.textContent = `failed: ${err.message}`; }
+        e.target.disabled = false;
+      } }))));
+  }
+  box.replaceChildren(el("div", { class: "table-wrap" }, el("table", {},
+    el("thead", {}, el("tr", {}, ...["Name", "Source", "Pinned", "Commit", "Verdict then", "Status", ""].map((t) => el("th", { text: t })))),
+    tbody)));
+}

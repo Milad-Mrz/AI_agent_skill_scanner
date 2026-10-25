@@ -61,6 +61,7 @@ def test_star_spike_on_young_repo_scores_low() -> None:
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(webui, "DOTENV", tmp_path / "missing.env")
     monkeypatch.setattr(webui, "DATA_DIR", tmp_path / "data")
+    monkeypatch.setattr(webui.pins, "PIN_DIR", tmp_path / "data" / "pins")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     webui._jobs.clear()
@@ -148,3 +149,22 @@ def test_rewrite_requires_llm_scan(client: TestClient) -> None:
     assert client.post("/api/jobs/s1/rewrite", json={"keep": [0]}).status_code == 404
     webui._jobs["s1"].report = {"verdict": {}, "explanation": {"items": []}}
     assert client.post("/api/jobs/s1/rewrite", json={"keep": [0]}).status_code == 400
+
+
+def test_pin_and_verify_through_api(client: TestClient, tmp_path: Path) -> None:
+    skill = tmp_path / "s"
+    skill.mkdir()
+    (skill / "SKILL.md").write_text("# s\n", encoding="utf-8")
+    webui._jobs["p1"] = webui.Job(
+        id="p1",
+        source=str(skill),
+        profile="static",
+        status="done",
+        report={"verdict": {"score": 0, "recommendation": "SAFE"}},
+    )
+    pinned = client.post("/api/jobs/p1/pin").json()
+    assert pinned["file_count"] == 1
+    assert client.get("/api/pins").json()[0]["name"] == pinned["name"]
+    assert client.post(f"/api/pins/{pinned['name']}/verify").json()["clean"] is True
+    (skill / "SKILL.md").write_text("# changed\n", encoding="utf-8")
+    assert client.post(f"/api/pins/{pinned['name']}/verify").json()["changed"] == ["SKILL.md"]
