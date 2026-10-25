@@ -38,15 +38,6 @@ PROFILES: dict[str, dict[str, str]] = {
         "SKILLSPECTOR_PROVIDER": "nv_build",
         "SKILLSPECTOR_MODEL": "openai/gpt-oss-120b",
     },
-    # Local open-weight models through Ollama; nothing leaves the machine.
-    "local-qwen-coder-7b": {
-        "SKILLSPECTOR_PROVIDER": "ollama",
-        "SKILLSPECTOR_MODEL": "qwen2.5-coder:7b",
-    },
-    "local-qwen-coder-14b": {
-        "SKILLSPECTOR_PROVIDER": "ollama",
-        "SKILLSPECTOR_MODEL": "qwen2.5-coder:14b",
-    },
 }
 
 PROFILE_LABELS: dict[str, str] = {
@@ -55,20 +46,16 @@ PROFILE_LABELS: dict[str, str] = {
     "nv-deepseek": "DeepSeek V4 Flash (open, NVIDIA Build)",
     "nv-glm": "GLM-5.3 (open, NVIDIA Build)",
     "nv-gpt-oss": "gpt-oss-120b (open, NVIDIA Build)",
-    "local-qwen-coder-7b": "Qwen2.5-Coder 7B (local, Ollama)",
-    "local-qwen-coder-14b": "Qwen2.5-Coder 14B (local, Ollama, slow on 6 GB)",
 }
 
 # The API key each profile needs, so callers can fail early with a clear message.
-# Local Ollama profiles need no key.
+# Local Ollama profiles (none bundled: small local models proved too weak) would need no key.
 REQUIRED_KEY: dict[str, str | None] = {
     "sonnet": "ANTHROPIC_API_KEY",
     "sol-medium": "OPENAI_API_KEY",
     "nv-deepseek": "NVIDIA_INFERENCE_KEY",
     "nv-glm": "NVIDIA_INFERENCE_KEY",
     "nv-gpt-oss": "NVIDIA_INFERENCE_KEY",
-    "local-qwen-coder-7b": None,
-    "local-qwen-coder-14b": None,
 }
 
 # Controls a profile must not inherit from the caller's environment, because the

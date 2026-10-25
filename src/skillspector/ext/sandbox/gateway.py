@@ -44,7 +44,8 @@ class GatewayConfig:
     max_llm_calls: int = 40
     max_llm_tokens: int = 400_000
     extra_body: dict = field(default_factory=dict)
-    api_style: str = "chat"  # "chat" (OpenAI-compatible) or "responses" (OpenAI Responses API)
+    # "chat" (OpenAI-compatible), "responses" (OpenAI Responses API) or "anthropic" (Messages API)
+    api_style: str = "chat"
     # Test mode: replay these chat-completion replies instead of calling a model.
     script: list[dict] | None = None
     reasoning_effort: str | None = None
@@ -55,6 +56,8 @@ class GatewayState:
     events: list[dict] = field(default_factory=list)
     llm_calls: int = 0
     llm_tokens: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
     lock: threading.Lock = field(default_factory=threading.Lock)
 
     def log(self, **event: object) -> None:
@@ -132,7 +135,107 @@ def responses_to_chat(data: dict) -> dict:
     usage = data.get("usage") or {}
     return {
         "choices": [{"message": message}],
-        "usage": {"total_tokens": usage.get("total_tokens", 0)},
+        "usage": {
+            "prompt_tokens": usage.get("input_tokens", 0),
+            "completion_tokens": usage.get("output_tokens", 0),
+            "total_tokens": usage.get("total_tokens", 0),
+        },
+    }
+
+
+def chat_to_anthropic(payload: dict, model: str, max_tokens: int = 4096) -> dict:
+    """Translate a chat-completions request into an Anthropic Messages API request."""
+    system, messages = [], []
+
+    def push(role: str, block: dict) -> None:
+        # The Messages API wants alternating roles; merge consecutive blocks of one role.
+        if messages and messages[-1]["role"] == role:
+            messages[-1]["content"].append(block)
+        else:
+            messages.append({"role": role, "content": [block]})
+
+    for message in payload.get("messages", []):
+        role, content = message.get("role"), message.get("content")
+        if role == "system":
+            system.append(content or "")
+        elif role == "tool":
+            push(
+                "user",
+                {
+                    "type": "tool_result",
+                    "tool_use_id": message.get("tool_call_id"),
+                    "content": content or "",
+                },
+            )
+        else:
+            if content:
+                push(role, {"type": "text", "text": content})
+            for call in message.get("tool_calls") or []:
+                try:
+                    arguments = json.loads(call["function"].get("arguments") or "{}")
+                except ValueError:
+                    arguments = {}
+                push(
+                    "assistant",
+                    {
+                        "type": "tool_use",
+                        "id": call["id"],
+                        "name": call["function"]["name"],
+                        "input": arguments,
+                    },
+                )
+    request = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "messages": messages,
+        "tools": [
+            {
+                "name": t["function"]["name"],
+                "description": t["function"].get("description", ""),
+                "input_schema": t["function"].get("parameters")
+                or {"type": "object", "properties": {}},
+            }
+            for t in payload.get("tools", [])
+        ],
+    }
+    if system:
+        request["system"] = "\n\n".join(system)
+    return request
+
+
+def anthropic_to_chat(data: dict) -> dict:
+    """Translate an Anthropic Messages reply into a chat-completions reply."""
+    text, calls = [], []
+    for block in data.get("content", []):
+        if block.get("type") == "text":
+            text.append(block.get("text", ""))
+        elif block.get("type") == "tool_use":
+            calls.append(
+                {
+                    "id": block.get("id"),
+                    "type": "function",
+                    "function": {
+                        "name": block.get("name"),
+                        "arguments": json.dumps(block.get("input") or {}),
+                    },
+                }
+            )
+    content = "\n".join(text) or None
+    if content is None and not calls:
+        # e.g. a refusal: keep the reason visible in the transcript.
+        content = f"[model stopped without text: {data.get('stop_reason', 'unknown')}]"
+    message = {"role": "assistant", "content": content}
+    if calls:
+        message["tool_calls"] = calls
+    usage = data.get("usage") or {}
+    prompt, completion = usage.get("input_tokens", 0), usage.get("output_tokens", 0)
+    return {
+        "choices": [{"message": message}],
+        "usage": {
+            "prompt_tokens": prompt,
+            "completion_tokens": completion,
+            "total_tokens": prompt + completion,
+        },
     }
 
 
@@ -213,12 +316,18 @@ def make_handler(config: GatewayConfig, state: GatewayState) -> type[BaseHTTPReq
             payload["model"] = config.model
             payload.update(config.extra_body)
             headers = {"Content-Type": "application/json"}
-            if config.real_key:
+            if config.real_key and config.api_style == "anthropic":
+                headers["x-api-key"] = config.real_key
+                headers["anthropic-version"] = "2023-06-01"
+            elif config.real_key:
                 headers["Authorization"] = f"Bearer {config.real_key}"
             path = self.path.split("/v1", 1)[1] if "/v1" in self.path else self.path
             if config.api_style == "responses":
                 path = "/responses"
                 payload = chat_to_responses(payload, config.model, config.reasoning_effort)
+            elif config.api_style == "anthropic":
+                path = "/messages"
+                payload = chat_to_anthropic(payload, config.model)
             try:
                 response = httpx.post(
                     config.upstream_base.rstrip("/") + path,
@@ -233,14 +342,19 @@ def make_handler(config: GatewayConfig, state: GatewayState) -> type[BaseHTTPReq
             usage, content = {}, response.content
             try:
                 data = response.json()
-                if config.api_style == "responses" and response.status_code == 200:
-                    data = responses_to_chat(data)
+                if response.status_code == 200 and config.api_style in {"responses", "anthropic"}:
+                    convert = (
+                        responses_to_chat if config.api_style == "responses" else anthropic_to_chat
+                    )
+                    data = convert(data)
                     content = json.dumps(data).encode()
                 usage = data.get("usage") or {}
             except ValueError:
                 data = {}
             with state.lock:
                 state.llm_tokens += int(usage.get("total_tokens") or 0)
+                state.input_tokens += int(usage.get("prompt_tokens") or 0)
+                state.output_tokens += int(usage.get("completion_tokens") or 0)
             state.log(
                 kind="llm_call",
                 status=response.status_code,

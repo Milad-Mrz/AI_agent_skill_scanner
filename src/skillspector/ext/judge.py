@@ -151,7 +151,7 @@ def judge(files: list[RevealedFile], raw_text: dict[str, str] | None = None) -> 
         return JudgeOutput(error="no text files to judge")
     prompt, included = build_prompt(files)
     output = JudgeOutput(files_skipped=[f.path for f in files if f not in included])
-    result = structured_call(prompt, JudgeResult)
+    result = structured_call(prompt, JudgeResult, stage="judge")
     if result.value is None:
         output.error = result.error
         return output

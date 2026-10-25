@@ -100,7 +100,9 @@ def rewrite(purpose: str, approved: list[dict]) -> RewriteResult:
         return RewriteResult(error="no approved instructions")
     tag, body = fence(_approved_text(approved))
     result = structured_call(
-        PROMPT.format(open_tag=tag, purpose=purpose[:500], body=body), RewrittenSkill
+        PROMPT.format(open_tag=tag, purpose=purpose[:500], body=body),
+        RewrittenSkill,
+        stage="rewrite",
     )
     if result.value is None:
         return RewriteResult(error=result.error)

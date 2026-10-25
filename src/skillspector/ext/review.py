@@ -24,6 +24,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+from skillspector.ext import llm_call
 from skillspector.ext.explain import explain
 from skillspector.ext.judge import judge
 from skillspector.ext.reveal import reveal_skill
@@ -176,6 +177,26 @@ def add_dynamic(result: dict, sandbox: dict) -> dict:
     return result
 
 
+def usage_summary(report: dict) -> dict:
+    """Tokens per stage: upstream inference telemetry plus the fork's own LLM calls."""
+    stages: dict[str, dict[str, int]] = {}
+    for entry in (report.get("metadata") or {}).get("inference_usage") or []:
+        slot = stages.setdefault("upstream", {"input_tokens": 0, "output_tokens": 0})
+        slot["input_tokens"] += int(entry.get("prompt_tokens") or 0)
+        slot["output_tokens"] += int(entry.get("completion_tokens") or 0)
+    for entry in llm_call.USAGE:
+        slot = stages.setdefault(entry["stage"], {"input_tokens": 0, "output_tokens": 0})
+        slot["input_tokens"] += entry["input_tokens"]
+        slot["output_tokens"] += entry["output_tokens"]
+    return {
+        "provider": os.environ.get("SKILLSPECTOR_PROVIDER", ""),
+        "model": os.environ.get("SKILLSPECTOR_MODEL", ""),
+        "stages": stages,
+        "input_tokens": sum(s["input_tokens"] for s in stages.values()),
+        "output_tokens": sum(s["output_tokens"] for s in stages.values()),
+    }
+
+
 def review(
     source: str,
     *,
@@ -221,6 +242,7 @@ def review(
             "judge": judge_output,
             "explanation": explanation,
             "verdict": verdict,
+            "usage": usage_summary(report) if use_llm else None,
         }
     finally:
         handler.cleanup()
@@ -235,7 +257,9 @@ def main(argv: list[str] | None = None) -> int:
         args = parser.parse_args(argv[1:])
         data = json.loads(args.input.read_text(encoding="utf-8"))
         result = rewrite(str(data.get("purpose", "")), list(data.get("items") or []))
-        args.out.write_text(json.dumps(result.to_dict()), encoding="utf-8")
+        args.out.write_text(
+            json.dumps({**result.to_dict(), "usage": usage_summary({})}), encoding="utf-8"
+        )
         return 0 if not result.error else 2
 
     parser = argparse.ArgumentParser(description=__doc__)

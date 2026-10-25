@@ -35,7 +35,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from skillspector.ext import batch as batches
-from skillspector.ext import github_search
+from skillspector.ext import github_search, pricing
 from skillspector.ext import pin as pins
 from skillspector.ext.llm_profiles import (
     PROFILE_LABELS,
@@ -126,7 +126,34 @@ class Job:
             "stages": STAGES.get(self.kind, []),
             "stage_times": self.stage_times,
             "issues": _issue_keys(risk.get("issues") or report.get("issues") or []),
+            "usage": _job_usage(self),
         }
+
+
+def _job_usage(job: Job) -> dict | None:
+    """Tokens and estimated cost of one task (review stages, sandbox agent, rewrites)."""
+    report = job.report or {}
+    model = PROFILES.get(job.profile, {}).get("SKILLSPECTOR_MODEL")
+    provider = PROFILES.get(job.profile, {}).get("SKILLSPECTOR_PROVIDER")
+    input_tokens = output_tokens = 0
+    if usage := report.get("usage"):
+        input_tokens += int(usage.get("input_tokens") or 0)
+        output_tokens += int(usage.get("output_tokens") or 0)
+    events = (report.get("sandbox") or {}).get("events") or {}
+    input_tokens += int(events.get("input_tokens") or 0)
+    output_tokens += int(events.get("output_tokens") or 0)
+    if rewrite_usage := (report.get("rewrite") or {}).get("usage"):
+        input_tokens += int(rewrite_usage.get("input_tokens") or 0)
+        output_tokens += int(rewrite_usage.get("output_tokens") or 0)
+    if not (input_tokens or output_tokens):
+        return None
+    return {
+        "provider": provider,
+        "model": model,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "cost_usd": pricing.estimate(model, input_tokens, output_tokens),
+    }
 
 
 def _issue_keys(issues: list[dict]) -> list[list]:
@@ -1010,6 +1037,83 @@ def delete_history(source: str) -> dict:
     return {"deleted": _delete_jobs(selected)}
 
 
+@app.get("/api/usage")
+def usage() -> dict:
+    """Token use and estimated cost per API model, over all saved tasks."""
+    by_model: dict[str, dict] = {}
+    for found in list(_jobs.values()):
+        task_usage = _job_usage(found)
+        if not task_usage:
+            continue
+        key = task_usage["model"] or found.profile
+        slot = by_model.setdefault(
+            key,
+            {
+                "model": key,
+                "provider": task_usage["provider"],
+                "tasks": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "cost_usd": 0.0,
+                "priced": True,
+            },
+        )
+        slot["tasks"] += 1
+        slot["input_tokens"] += task_usage["input_tokens"]
+        slot["output_tokens"] += task_usage["output_tokens"]
+        if task_usage["cost_usd"] is None:
+            slot["priced"] = False
+        else:
+            slot["cost_usd"] = round(slot["cost_usd"] + task_usage["cost_usd"], 4)
+    models = sorted(by_model.values(), key=lambda m: -m["cost_usd"])
+    return {
+        "models": models,
+        "total_cost_usd": round(sum(m["cost_usd"] for m in models), 4),
+        "pricing_file": str(pricing.PRICING_FILE),
+        "prices": {k: list(v) for k, v in pricing.prices().items()},
+    }
+
+
+def _clone_job(found: Job) -> Job:
+    return Job(
+        uuid.uuid4().hex[:12],
+        found.source,
+        found.profile,
+        found.strict,
+        kind=found.kind,
+        operation=found.operation,
+        label=found.label,
+        repo_id=found.repo_id,
+        repo_name=found.repo_name,
+        skill=found.skill,
+        target=found.target,
+        batch_id=found.batch_id,
+    )
+
+
+@app.post("/api/jobs/{job_id}/redo")
+def redo_job(job_id: str) -> dict:
+    """Queue the same operation on the same skill again."""
+    found = _jobs.get(job_id)
+    if not found:
+        raise HTTPException(404, "unknown job")
+    if found.kind != "pin" and found.target and not Path(found.target).exists():
+        raise HTTPException(400, "the fetched copy is gone; refresh the repository first")
+    _check_profile(found.profile)
+    return _enqueue(_clone_job(found)).summary()
+
+
+@app.post("/api/redo-failed")
+def redo_failed(source: str) -> dict:
+    """Queue again every skill/operation of a link whose latest task failed or was stopped."""
+    latest: dict[tuple[str, str], Job] = {}
+    for found in sorted(_jobs.values(), key=lambda j: j.started):
+        if found.source == source:
+            latest[(_skill_of(found), found.operation)] = found
+    redo = [j for j in latest.values() if j.status in {"error", "cancelled", "interrupted"}]
+    return {"queued": [_enqueue(_clone_job(j)).summary() for j in redo]}
+
+
 @app.post("/api/stop-all")
 def stop_all() -> dict:
     """Stop every running task and empty the waiting list."""
@@ -1036,6 +1140,184 @@ def cancel_job(job_id: str) -> dict:
     return found.summary()
 
 
+# ---------------------------------------------------------------------------
+# Skill library: keep / delete decisions per skill, cleaned repositories, export
+# ---------------------------------------------------------------------------
+
+_library: dict[str, dict[str, str]] = {}  # repo_id -> {skill path: "deleted" | "kept"}
+
+
+def _library_path() -> Path:
+    return DATA_DIR / "library.json"
+
+
+def _save_library() -> None:
+    _library_path().parent.mkdir(parents=True, exist_ok=True)
+    _library_path().write_text(json.dumps(_library), encoding="utf-8")
+
+
+def load_library() -> None:
+    try:
+        _library.update(json.loads(_library_path().read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        pass
+
+
+def _latest_by_skill(source: str) -> dict[str, list[Job]]:
+    latest: dict[tuple[str, str], Job] = {}
+    for found in sorted(_jobs.values(), key=lambda j: j.finished or j.started):
+        if found.source == source and found.status == "done" and found.kind != "pin":
+            latest[(_skill_of(found), found.operation)] = found
+    grouped: dict[str, list[Job]] = {}
+    for (name, _op), found in latest.items():
+        grouped.setdefault(name, []).append(found)
+    return grouped
+
+
+def library_view() -> list[dict]:
+    out = []
+    for repo_record in sorted(_repos.values(), key=lambda r: r.added):
+        if repo_record.status != "ready":
+            continue
+        states = _library.get(repo_record.id, {})
+        results = _latest_by_skill(repo_record.source)
+        skills = []
+        for skill in repo_record.skills:
+            runs = results.get(skill["name"], [])
+            recs = [j.summary().get("recommendation") for j in runs]
+            recs = [r for r in recs if r]
+            merged: dict[str, str] = {}
+            for found in runs:
+                for rule, sev, file, line, _title in found.summary()["issues"]:
+                    key = f"{rule}|{file}|{line}"
+                    if (
+                        _SEV_RANK.get(sev, 9) < _SEV_RANK.get(merged.get(key, "INFO"), 9)
+                        or key not in merged
+                    ):
+                        merged[key] = sev
+            counts: dict[str, int] = {}
+            for sev in merged.values():
+                counts[sev] = counts.get(sev, 0) + 1
+            skills.append(
+                {
+                    "path": skill["path"],
+                    "name": skill["name"],
+                    "state": states.get(skill["path"], "undecided"),
+                    "recommendation": min(recs, key=lambda r: _REC_RANK.get(r, 3))
+                    if recs
+                    else None,
+                    "methods": [
+                        {
+                            "label": j.label or j.operation,
+                            "score": j.summary()["score"],
+                            "recommendation": j.summary()["recommendation"],
+                            "id": j.id,
+                        }
+                        for j in sorted(runs, key=lambda j: j.label or j.operation)
+                    ],
+                    "counts": counts,
+                }
+            )
+        remaining = [s for s in skills if s["state"] != "deleted"]
+        out.append(
+            {
+                "id": repo_record.id,
+                "source": repo_record.source,
+                "name": repo_record.name,
+                "skills": skills,
+                "remaining": len(remaining),
+                "deleted": len(skills) - len(remaining),
+                "cleaned": bool(remaining)
+                and all(s["recommendation"] == "SAFE" for s in remaining),
+                "unscanned": sum(1 for s in remaining if not s["recommendation"]),
+            }
+        )
+    return out
+
+
+@app.get("/api/library")
+def library() -> list[dict]:
+    return library_view()
+
+
+class LibraryAction(BaseModel):
+    action: str = Field(..., description="delete | restore | keep")
+    mode: str = Field("selected", description="selected | red | red_yellow | all")
+    skills: list[str] = Field(default_factory=list, description="skill paths for mode=selected")
+
+
+@app.post("/api/library/{repo_id}")
+def library_action(repo_id: str, request: LibraryAction) -> dict:
+    """Mark skills deleted, restored or kept; group modes pick skills by their verdict."""
+    view = next((r for r in library_view() if r["id"] == repo_id), None)
+    if view is None:
+        raise HTTPException(404, "unknown or not-ready repository")
+    if request.action not in {"delete", "restore", "keep"}:
+        raise HTTPException(400, "action must be delete, restore or keep")
+    pick = {
+        "red": lambda s: s["recommendation"] == "DO_NOT_INSTALL",
+        "red_yellow": lambda s: s["recommendation"] in {"DO_NOT_INSTALL", "CAUTION"},
+        "all": lambda s: True,
+        "selected": lambda s: s["path"] in set(request.skills),
+    }.get(request.mode)
+    if pick is None:
+        raise HTTPException(400, "unknown mode")
+    chosen = [s["path"] for s in view["skills"] if pick(s)]
+    states = _library.setdefault(repo_id, {})
+    for path in chosen:
+        if request.action == "restore":
+            states.pop(path, None)
+        else:
+            states[path] = "deleted" if request.action == "delete" else "kept"
+    _save_library()
+    return {"changed": len(chosen), "repo": next(r for r in library_view() if r["id"] == repo_id)}
+
+
+@app.get("/api/library/{repo_id}/export")
+def library_export(repo_id: str) -> FileResponse:
+    """Zip of the repository's remaining (not deleted) skills plus a verdict manifest."""
+    repo_record = _repos.get(repo_id)
+    view = next((r for r in library_view() if r["id"] == repo_id), None)
+    if not repo_record or not view or not Path(repo_record.root).is_dir():
+        raise HTTPException(404, "repository copy not available; refresh it")
+    work = Path(tempfile.mkdtemp(prefix="skillui-export-"))
+    bundle = work / view["name"].replace("/", "-")
+    manifest = []
+    for skill in view["skills"]:
+        if skill["state"] == "deleted":
+            continue
+        source_dir = Path(repo_record.root) / skill["path"]
+        target = bundle / skill["path"] if skill["path"] != "." else bundle
+        shutil.copytree(
+            source_dir,
+            target,
+            symlinks=False,
+            dirs_exist_ok=True,
+            ignore=shutil.ignore_patterns(".git"),
+        )
+        manifest.append({k: skill[k] for k in ("name", "path", "recommendation", "methods")})
+    bundle.mkdir(parents=True, exist_ok=True)
+    (bundle / "SKILL_REVIEW.json").write_text(
+        json.dumps(
+            {
+                "source": view["source"],
+                "cleaned": view["cleaned"],
+                "skills": manifest,
+                "removed": [s["path"] for s in view["skills"] if s["state"] == "deleted"],
+            },
+            indent=1,
+        ),
+        encoding="utf-8",
+    )
+    archive = shutil.make_archive(
+        str(work / "export"), "zip", root_dir=bundle.parent, base_dir=bundle.name
+    )
+    return FileResponse(
+        archive, filename=f"{bundle.name}-reviewed.zip", media_type="application/zip"
+    )
+
+
 load_history()
 load_repos()
+load_library()
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

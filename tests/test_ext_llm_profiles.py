@@ -73,16 +73,20 @@ def test_every_profile_has_a_label() -> None:
     assert set(PROFILE_LABELS) == set(PROFILES)
 
 
-def test_local_profile_needs_no_key() -> None:
-    env = profile_env("local-qwen-coder-7b", base={})
-    assert env["SKILLSPECTOR_PROVIDER"] == "ollama"
-    assert env["SKILLSPECTOR_MODEL"] == "qwen2.5-coder:7b"
+def test_ollama_profile_ready_depends_on_pulled_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(
+        llm_profiles.PROFILES,
+        "local-test",
+        {"SKILLSPECTOR_PROVIDER": "ollama", "SKILLSPECTOR_MODEL": "m:1"},
+    )
+    monkeypatch.setattr(llm_profiles, "ollama_models", lambda base_url=None: {"m:1"})
+    assert profile_ready("local-test", {}) == (True, None)
+    monkeypatch.setattr(llm_profiles, "ollama_models", lambda base_url=None: set())
+    assert profile_ready("local-test", {}) == (False, "ollama pull m:1")
 
 
-def test_local_profile_ready_depends_on_pulled_model(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(llm_profiles, "ollama_models", lambda base_url=None: {"qwen2.5-coder:7b"})
-    assert profile_ready("local-qwen-coder-7b", {}) == (True, None)
-    assert profile_ready("local-qwen-coder-14b", {}) == (False, "ollama pull qwen2.5-coder:14b")
+def test_no_weak_local_models_are_offered() -> None:
+    assert not any(p["SKILLSPECTOR_PROVIDER"] == "ollama" for p in PROFILES.values())
 
 
 def test_hosted_open_profile_needs_nvidia_key() -> None:

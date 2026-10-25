@@ -262,3 +262,19 @@ details.batch > summary .icon svg { width: 20px; height: 20px; display: block; }
 .method-name { font-weight: 700; font-size: 13px; }
 .found-by { display: flex; gap: 4px; flex-wrap: wrap; margin-left: auto; }
 .found-by .op-chip { font-size: 11px; }
+
+/* ---- usage + library ---- */
+.usage { display: block; font-size: 11px; color: var(--muted); }
+.usage-panel { border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; margin-bottom: 10px; }
+.usage-panel summary { cursor: pointer; }
+.dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px; border: 1px solid var(--border); }
+.dot.SAFE { background: var(--low); } .dot.CAUTION { background: var(--med); } .dot.DO_NOT_INSTALL { background: var(--crit); }
+.dot.none { background: transparent; }
+.lib-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-top: 1px solid var(--border); }
+.lib-actions button, .btn-like { font-size: 12px; padding: 4px 10px; }
+.btn-like { border: 1px solid var(--border); border-radius: 6px; color: var(--text); text-decoration: none; margin-left: auto; }
+.item-head.lib-row { grid-template-columns: auto minmax(150px, 1.3fr) minmax(100px, 1fr) minmax(150px, 1.8fr) auto auto; }
+.lib-check { display: flex; align-items: center; gap: 8px; }
+.lib-row.deleted { opacity: .55; }
+.lib-row.deleted strong { text-decoration: line-through; }
+details.library.cleaned > summary { box-shadow: inset 4px 0 0 var(--low); }

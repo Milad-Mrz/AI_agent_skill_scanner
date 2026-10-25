@@ -63,6 +63,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(webui, "DATA_DIR", tmp_path / "data")
     monkeypatch.setattr(webui.pins, "PIN_DIR", tmp_path / "data" / "pins")
     webui._repos.clear()
+    webui._library.clear()
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     webui._jobs.clear()
@@ -76,7 +77,6 @@ def test_index_and_profiles(client: TestClient) -> None:
     assert profiles["sol-medium"]["ready"] is False
     assert profiles["sol-medium"]["model"] == "gpt-6.1-sol"
     assert profiles["sol-medium"]["missing"] == "OPENAI_API_KEY"
-    assert profiles["local-qwen-coder-7b"]["provider"] == "ollama"
     assert all("sk-" not in str(p) for p in profiles.values())
 
 
@@ -355,3 +355,108 @@ def test_combined_results_merge_methods_per_skill(client: TestClient) -> None:
     assert len(one["skills"]) == 1 and one["skills"][0]["recommendation"] == "SAFE"
     assert client.delete("/api/history", params={"source": src}).json()["deleted"] == 3
     assert client.get("/api/combined", params={"source": src}).status_code == 404
+
+
+def _library_fixture(tmp_path: Path) -> str:
+    root = tmp_path / "repo"
+    for name in ("red", "yellow", "green", "fresh"):
+        (root / name).mkdir(parents=True)
+        (root / name / "SKILL.md").write_text(f"---\nname: {name}\n---\nx\n", encoding="utf-8")
+    src = "https://github.com/o/lib"
+    webui._repos["L"] = webui.Repo(
+        "L",
+        src,
+        "o/lib",
+        status="ready",
+        root=str(root),
+        skills=[{"path": n, "name": n} for n in ("red", "yellow", "green", "fresh")],
+    )
+    for name, rec in (("red", "DO_NOT_INSTALL"), ("yellow", "CAUTION"), ("green", "SAFE")):
+        webui._jobs[f"j-{name}"] = webui.Job(
+            id=f"j-{name}",
+            source=src,
+            profile="static",
+            status="done",
+            skill=name,
+            operation="static",
+            finished=1.0,
+            report={"verdict": {"score": 1, "recommendation": rec, "issues": []}},
+        )
+    return src
+
+
+def test_library_group_delete_restore_and_cleaned(client: TestClient, tmp_path: Path) -> None:
+    _library_fixture(tmp_path)
+    (repo,) = client.get("/api/library").json()
+    assert repo["remaining"] == 4 and repo["unscanned"] == 1 and not repo["cleaned"]
+    assert (
+        client.post("/api/library/L", json={"action": "delete", "mode": "red"}).json()["changed"]
+        == 1
+    )
+    repo = client.post("/api/library/L", json={"action": "delete", "mode": "red_yellow"}).json()[
+        "repo"
+    ]
+    assert repo["deleted"] == 2 and not repo["cleaned"]  # "fresh" is not scanned yet
+    repo = client.post(
+        "/api/library/L", json={"action": "delete", "mode": "selected", "skills": ["fresh"]}
+    ).json()["repo"]
+    assert repo["cleaned"] is True and repo["remaining"] == 1
+    export = client.get("/api/library/L/export")
+    assert export.status_code == 200 and export.headers["content-type"] == "application/zip"
+    import io
+    import zipfile
+
+    names = zipfile.ZipFile(io.BytesIO(export.content)).namelist()
+    assert any(n.endswith("green/SKILL.md") for n in names)
+    assert not any("/red/" in n for n in names)
+    assert any(n.endswith("SKILL_REVIEW.json") for n in names)
+    repo = client.post("/api/library/L", json={"action": "restore", "mode": "all"}).json()["repo"]
+    assert repo["deleted"] == 0
+
+
+def test_usage_and_redo(client: TestClient, tmp_path: Path) -> None:
+    webui._jobs["u1"] = webui.Job(
+        id="u1",
+        source="x",
+        profile="sol-medium",
+        status="done",
+        target=str(tmp_path),
+        report={"verdict": {}, "usage": {"input_tokens": 1_000_000, "output_tokens": 100_000}},
+    )
+    summary = client.get("/api/jobs/u1").json()["usage"]
+    assert summary["model"] == "gpt-6.1-sol" and summary["cost_usd"] == 3.0
+    totals = client.get("/api/usage").json()
+    assert totals["total_cost_usd"] == 3.0 and totals["models"][0]["tasks"] == 1
+    webui._jobs["r1"] = webui.Job(
+        id="r1",
+        source="s",
+        profile="static",
+        status="error",
+        target=str(tmp_path),
+        operation="static",
+        kind="review-static",
+    )
+    redo = client.post("/api/jobs/r1/redo").json()
+    assert redo["id"] != "r1" and redo["operation"] == "static"
+    webui._jobs["f1"] = webui.Job(
+        id="f1",
+        source="s2",
+        profile="static",
+        status="cancelled",
+        target=str(tmp_path),
+        operation="static",
+        kind="review-static",
+        skill="k",
+    )
+    webui._jobs["f2"] = webui.Job(
+        id="f2",
+        source="s2",
+        profile="static",
+        status="done",
+        target=str(tmp_path),
+        operation="static",
+        kind="review-static",
+        skill="ok",
+    )
+    queued = client.post("/api/redo-failed", params={"source": "s2"}).json()["queued"]
+    assert [q["skill"] for q in queued] == ["k"]
