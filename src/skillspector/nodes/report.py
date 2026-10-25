@@ -39,6 +39,7 @@ from rich.text import Text
 
 from skillspector import __version__ as skillspector_version
 from skillspector.dependency_sources import redact_text
+from skillspector.ext.strict_policy import strict_enabled, strict_floor
 from skillspector.inference_usage import looks_like_credential, sanitize_inference_usage
 from skillspector.inspection_ledger import (
     MAX_FINDING_OUTPUT_RECORDS,
@@ -1964,6 +1965,12 @@ def report(state: SkillspectorState) -> dict[str, object]:
     risk_score, risk_severity, risk_recommendation = _compute_risk_score(
         active_findings, has_executable_scripts, component_metadata
     )
+    # Fork: opt-in strict verdict floors (src/skillspector/ext/strict_policy.py).
+    if strict_enabled():
+        floor, _reasons = strict_floor(active_findings)
+        if floor > risk_score:
+            risk_score = floor
+            risk_severity, risk_recommendation = risk_severity_and_recommendation(floor)
     reported_findings = _bounded_report_findings(deduplicate(active_findings))
     remaining_output_records = max(
         0,

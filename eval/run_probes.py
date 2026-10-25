@@ -46,6 +46,7 @@ def main() -> int:
         "--profile", choices=sorted(PROFILES), help="enable the LLM stage with this profile"
     )
     parser.add_argument("--out", type=Path, help="keep JSON reports in this directory")
+    parser.add_argument("--strict", action="store_true", help="apply the strict verdict policy")
     args = parser.parse_args()
 
     if args.profile:
@@ -55,6 +56,9 @@ def main() -> int:
             parser.error(str(exc))
     else:
         env = dict(os.environ)
+
+    if args.strict:
+        env["SKILLSPECTOR_STRICT"] = "1"
 
     out_dir = args.out or Path(tempfile.mkdtemp(prefix="probe-reports-"))
     out_dir.mkdir(parents=True, exist_ok=True)
