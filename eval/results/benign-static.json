@@ -1,0 +1,1174 @@
+{
+ "summary": {
+  "cases": 130,
+  "errors": 0,
+  "verdicts": {
+   "CAUTION": 91,
+   "SAFE": 31,
+   "DO_NOT_INSTALL": 8
+  },
+  "upstream_verdicts": {
+   "CAUTION": 91,
+   "SAFE": 31,
+   "DO_NOT_INSTALL": 8
+  },
+  "flagged_percent": 76.2,
+  "do_not_install_percent": 6.2,
+  "rules_on_benign": {
+   "AE1": 11,
+   "P6": 7,
+   "AR2": 5,
+   "P2": 3,
+   "TM1": 3,
+   "FG2": 3,
+   "TT3": 3,
+   "SC2": 2,
+   "TM2": 2,
+   "PE3": 2,
+   "SC4": 2,
+   "RA1": 1,
+   "TP2": 1,
+   "MP3": 1,
+   "FG3": 1
+  },
+  "profile": "static",
+  "seconds": 261
+ },
+ "rows": [
+  {
+   "id": "case_00023",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 14,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00054",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 22,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00151",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_00166",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00224",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_00239",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00312",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_00360",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00399",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00403",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 16,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_00431",
+   "threat": "benign",
+   "high_findings": [
+    "AR2"
+   ],
+   "score": 48,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00514",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_00563",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00565",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 16,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_00646",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_00699",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00712",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00741",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 12,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00795",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00829",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00848",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 8,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00877",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00883",
+   "threat": "benign",
+   "high_findings": [
+    "P6"
+   ],
+   "score": 21,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00920",
+   "threat": "benign",
+   "high_findings": [
+    "AE1"
+   ],
+   "score": 43,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00936",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00941",
+   "threat": "benign",
+   "high_findings": [
+    "P2"
+   ],
+   "score": 31,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00963",
+   "threat": "benign",
+   "high_findings": [
+    "RA1"
+   ],
+   "score": 35,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00990",
+   "threat": "benign",
+   "high_findings": [
+    "SC2",
+    "TM1"
+   ],
+   "score": 94,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_00999",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_01013",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 5,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01067",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01121",
+   "threat": "benign",
+   "high_findings": [
+    "TP2"
+   ],
+   "score": 28,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01175",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 13,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_01227",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 3,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01326",
+   "threat": "benign",
+   "high_findings": [
+    "P2"
+   ],
+   "score": 45,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01399",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 9,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_01445",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01479",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 20,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01589",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_01610",
+   "threat": "benign",
+   "high_findings": [
+    "FG2"
+   ],
+   "score": 21,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01618",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01677",
+   "threat": "benign",
+   "high_findings": [
+    "AR2",
+    "TM1"
+   ],
+   "score": 59,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_01831",
+   "threat": "benign",
+   "high_findings": [
+    "TM2"
+   ],
+   "score": 24,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01834",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01864",
+   "threat": "benign",
+   "high_findings": [
+    "AE1"
+   ],
+   "score": 50,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01956",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_01973",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 12,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01984",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02107",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02108",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 16,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02190",
+   "threat": "benign",
+   "high_findings": [
+    "P6"
+   ],
+   "score": 21,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02264",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02267",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 14,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02289",
+   "threat": "benign",
+   "high_findings": [
+    "AE1"
+   ],
+   "score": 44,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02372",
+   "threat": "benign",
+   "high_findings": [
+    "AE1"
+   ],
+   "score": 44,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02377",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02384",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_02423",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_02436",
+   "threat": "benign",
+   "high_findings": [
+    "PE3"
+   ],
+   "score": 21,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02554",
+   "threat": "benign",
+   "high_findings": [
+    "SC4"
+   ],
+   "score": 24,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02597",
+   "threat": "benign",
+   "high_findings": [
+    "AE1"
+   ],
+   "score": 43,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02641",
+   "threat": "benign",
+   "high_findings": [
+    "AR2"
+   ],
+   "score": 30,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02646",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02663",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 10,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02681",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_02687",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02713",
+   "threat": "benign",
+   "high_findings": [
+    "PE3"
+   ],
+   "score": 45,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02750",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 11,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02781",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 19,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02794",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_02902",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_02970",
+   "threat": "benign",
+   "high_findings": [
+    "AE1"
+   ],
+   "score": 32,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_03008",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 32,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_03084",
+   "threat": "benign",
+   "high_findings": [
+    "AE1"
+   ],
+   "score": 43,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_03130",
+   "threat": "benign",
+   "high_findings": [
+    "AR2"
+   ],
+   "score": 21,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_03140",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_03172",
+   "threat": "benign",
+   "high_findings": [
+    "AE1"
+   ],
+   "score": 44,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_03190",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_03225",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_03263",
+   "threat": "benign",
+   "high_findings": [
+    "AE1"
+   ],
+   "score": 44,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_03272",
+   "threat": "benign",
+   "high_findings": [
+    "TM2"
+   ],
+   "score": 36,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_03299",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_03323",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 14,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_03357",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 15,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_03396",
+   "threat": "benign",
+   "high_findings": [
+    "TT3"
+   ],
+   "score": 81,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_03398",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_03443",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_03604",
+   "threat": "benign",
+   "high_findings": [
+    "MP3"
+   ],
+   "score": 33,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_03698",
+   "threat": "benign",
+   "high_findings": [
+    "P6"
+   ],
+   "score": 35,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_03727",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_03843",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_03851",
+   "threat": "benign",
+   "high_findings": [
+    "P2"
+   ],
+   "score": 33,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_03898",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 6,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_03925",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 17,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_03966",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_03967",
+   "threat": "benign",
+   "high_findings": [
+    "FG2"
+   ],
+   "score": 25,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04017",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_04075",
+   "threat": "benign",
+   "high_findings": [
+    "AE1"
+   ],
+   "score": 32,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04190",
+   "threat": "benign",
+   "high_findings": [
+    "SC4"
+   ],
+   "score": 38,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04196",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_04218",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_04242",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04297",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 14,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04325",
+   "threat": "benign",
+   "high_findings": [
+    "TT3"
+   ],
+   "score": 81,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_04392",
+   "threat": "benign",
+   "high_findings": [
+    "FG2"
+   ],
+   "score": 25,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04426",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04500",
+   "threat": "benign",
+   "high_findings": [
+    "TM1"
+   ],
+   "score": 29,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04539",
+   "threat": "benign",
+   "high_findings": [
+    "P6"
+   ],
+   "score": 21,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04591",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 6,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04592",
+   "threat": "benign",
+   "high_findings": [
+    "P6"
+   ],
+   "score": 34,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04596",
+   "threat": "benign",
+   "high_findings": [
+    "P6"
+   ],
+   "score": 54,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_04672",
+   "threat": "benign",
+   "high_findings": [
+    "AE1"
+   ],
+   "score": 43,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04681",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 15,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04698",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04712",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04716",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04743",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_04835",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04876",
+   "threat": "benign",
+   "high_findings": [
+    "FG3"
+   ],
+   "score": 36,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05057",
+   "threat": "benign",
+   "high_findings": [
+    "AR2"
+   ],
+   "score": 27,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05058",
+   "threat": "benign",
+   "high_findings": [
+    "P6"
+   ],
+   "score": 21,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05060",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_05150",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 6,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05241",
+   "threat": "benign",
+   "high_findings": [
+    "SC2"
+   ],
+   "score": 68,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_05273",
+   "threat": "benign",
+   "high_findings": [
+    "TT3"
+   ],
+   "score": 94,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_05280",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 16,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05420",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 14,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05428",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 7,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_05430",
+   "threat": "benign",
+   "high_findings": [],
+   "score": 6,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05433",
+   "threat": "benign",
+   "high_findings": [
+    "FG1",
+    "SC10"
+   ],
+   "score": 70,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  }
+ ]
+}

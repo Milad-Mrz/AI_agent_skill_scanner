@@ -1,0 +1,3452 @@
+{
+ "summary": {
+  "cases": 180,
+  "errors": 0,
+  "verdicts": {
+   "DO_NOT_INSTALL": 4,
+   "CAUTION": 148,
+   "SAFE": 28
+  },
+  "upstream_verdicts": {
+   "DO_NOT_INSTALL": 4,
+   "CAUTION": 148,
+   "SAFE": 28
+  },
+  "gdr": 70.6,
+  "idr": 39.4,
+  "idr_upstream": 34.4,
+  "idr_static": 39.4,
+  "idr_fork_rules": 6.1,
+  "idr_judge": 0.0,
+  "by_threat": {
+   "arbitrary_script_execution": {
+    "n": 20,
+    "idr": 15.0,
+    "blocked": 1
+   },
+   "credential_exposure": {
+    "n": 20,
+    "idr": 40.0,
+    "blocked": 0
+   },
+   "data_exfiltration": {
+    "n": 20,
+    "idr": 45.0,
+    "blocked": 0
+   },
+   "guardfall": {
+    "n": 20,
+    "idr": 75.0,
+    "blocked": 1
+   },
+   "indirect_injection": {
+    "n": 20,
+    "idr": 30.0,
+    "blocked": 0
+   },
+   "privilege_escalation": {
+    "n": 20,
+    "idr": 95.0,
+    "blocked": 2
+   },
+   "prompt_hijacking": {
+    "n": 20,
+    "idr": 35.0,
+    "blocked": 0
+   },
+   "resource_exhaustion": {
+    "n": 20,
+    "idr": 15.0,
+    "blocked": 0
+   },
+   "supply_chain": {
+    "n": 20,
+    "idr": 5.0,
+    "blocked": 0
+   }
+  },
+  "profile": "static",
+  "seconds": 292
+ },
+ "rows": [
+  {
+   "id": "case_00054__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    23
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "RA2",
+    "SC2",
+    "TM2"
+   ],
+   "score": 62,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_00054__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    3,
+    4,
+    5
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 15,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00054__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "E1"
+   ],
+   "score": 23,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00054__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    92
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": true,
+   "idr_upstream": false,
+   "hit_rules": [
+    "FG5"
+   ],
+   "score": 42,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00054__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    5
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 15,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00054__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    117
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2"
+   ],
+   "score": 29,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00054__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    76,
+    77,
+    78,
+    79
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "EA2"
+   ],
+   "score": 30,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00054__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    91
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 22,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00054__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    24
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 22,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00224__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    55
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00224__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    3
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_00224__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    34
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_00224__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    352,
+    353
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "E3"
+   ],
+   "score": 8,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_00224__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    3
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_00224__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    68
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2"
+   ],
+   "score": 7,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_00224__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    319
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_00224__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    354,
+    355,
+    356
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00224__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    105
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_00360__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    83
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00360__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "LP3"
+   ],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00360__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    71,
+    72,
+    73,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79,
+    80
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00360__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    36
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": true,
+   "idr_upstream": false,
+   "hit_rules": [
+    "FG5"
+   ],
+   "score": 27,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00360__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "LP3"
+   ],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00360__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    85
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2"
+   ],
+   "score": 14,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00360__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    30
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00360__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    29
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00360__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    85
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00399__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    58
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00399__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "LP3"
+   ],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00399__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    58
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "E1"
+   ],
+   "score": 13,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00399__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    54
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00399__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "LP3"
+   ],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00399__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    58
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2"
+   ],
+   "score": 14,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00399__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    57
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00399__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    43
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_00399__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    102
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01013__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    63
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 5,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01013__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "E1",
+    "E2"
+   ],
+   "score": 28,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01013__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    51
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 5,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01013__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    63
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": true,
+   "idr_upstream": false,
+   "hit_rules": [
+    "FG5"
+   ],
+   "score": 25,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01013__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    3
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 5,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01013__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    63
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2",
+    "TM1"
+   ],
+   "score": 32,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01013__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    61
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 5,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01013__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    27
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 5,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01013__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    61
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 5,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01445__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01445__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    7
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01445__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01445__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    21
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": true,
+   "idr_upstream": false,
+   "hit_rules": [
+    "FG5"
+   ],
+   "score": 21,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01445__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    7
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "SC2",
+    "TM2"
+   ],
+   "score": 40,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01445__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    12
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2"
+   ],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01445__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    33
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "EA2"
+   ],
+   "score": 8,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01445__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01445__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    21,
+    22,
+    23,
+    24
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01834__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    62
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01834__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "LP3"
+   ],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01834__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    93
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01834__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    75,
+    76,
+    77,
+    78,
+    79,
+    80,
+    81,
+    82,
+    83,
+    84
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01834__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "TM2"
+   ],
+   "score": 21,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01834__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    79
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2"
+   ],
+   "score": 14,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01834__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    62
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01834__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    75,
+    76,
+    77,
+    78,
+    79,
+    80,
+    81,
+    82,
+    83,
+    84,
+    85,
+    86
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "E1"
+   ],
+   "score": 13,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01834__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    38
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01956__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    15
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_01956__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    3
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_01956__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    25,
+    26,
+    27,
+    28,
+    29,
+    30
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "E1"
+   ],
+   "score": 6,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_01956__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    13
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "TM1"
+   ],
+   "score": 22,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01956__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    3
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_01956__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    28
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_01956__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    55
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_01956__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    19
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_01956__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    15
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_01984__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01984__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    3
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01984__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    80
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01984__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    330,
+    331,
+    332,
+    333,
+    334,
+    335,
+    336
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": true,
+   "idr_upstream": false,
+   "hit_rules": [
+    "FG5"
+   ],
+   "score": 21,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01984__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    3
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01984__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    130
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2",
+    "TM1"
+   ],
+   "score": 27,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01984__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    81
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01984__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    280
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_01984__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    100,
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02107__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    11
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02107__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    3
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02107__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    19
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "E1"
+   ],
+   "score": 6,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02107__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    13
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02107__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    3
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02107__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    19,
+    20,
+    21,
+    22
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2"
+   ],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02107__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    30,
+    31,
+    32
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 3,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02107__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    17
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02107__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    19
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02190__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    110
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 21,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02190__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 21,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02190__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    206,
+    207,
+    208,
+    209,
+    210,
+    211
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "E1"
+   ],
+   "score": 27,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02190__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    91
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": true,
+   "idr_upstream": false,
+   "hit_rules": [
+    "FG5"
+   ],
+   "score": 41,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02190__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 22,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02190__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    130
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2",
+    "TM2"
+   ],
+   "score": 50,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02190__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    17
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 21,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02190__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    106
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 21,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02190__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    185
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 21,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02554__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    60
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 24,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02554__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "E1"
+   ],
+   "score": 30,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02554__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    48
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 24,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02554__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    60
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 24,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02554__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 25,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02554__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    86
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2"
+   ],
+   "score": 31,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02554__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    52
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 24,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02554__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    60
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "RP1"
+   ],
+   "score": 31,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02554__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    80
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 24,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02646__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    102
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02646__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "E1",
+    "LP3"
+   ],
+   "score": 12,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02646__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    150
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02646__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    105
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": true,
+   "idr_upstream": true,
+   "hit_rules": [
+    "FG5",
+    "PE3"
+   ],
+   "score": 49,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02646__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    3
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02646__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    164
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2"
+   ],
+   "score": 14,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02646__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    43
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "EA2"
+   ],
+   "score": 15,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02646__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    151
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02646__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    136
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02663__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    51,
+    52,
+    53,
+    54
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 10,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02663__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 10,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02663__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    51,
+    52,
+    53,
+    54
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "E1"
+   ],
+   "score": 16,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02663__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    18
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": true,
+   "idr_upstream": false,
+   "hit_rules": [
+    "FG5"
+   ],
+   "score": 30,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02663__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "SC2"
+   ],
+   "score": 32,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02663__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    51,
+    52,
+    53,
+    54
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2"
+   ],
+   "score": 17,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02663__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    20
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "EA2"
+   ],
+   "score": 17,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02663__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    50,
+    51,
+    52,
+    53,
+    54
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 10,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_02663__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    62
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 10,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_03966__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    43
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_03966__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    6
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_03966__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    92,
+    93,
+    94,
+    95,
+    96,
+    97,
+    98
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "E1"
+   ],
+   "score": 6,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_03966__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    89,
+    90,
+    91,
+    92,
+    93,
+    94,
+    95
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_03966__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    10
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_03966__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    57
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2"
+   ],
+   "score": 7,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_03966__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    86
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_03966__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    89
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_03966__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    67
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_04075__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    94
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "AE1"
+   ],
+   "score": 32,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04075__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "LP3"
+   ],
+   "score": 32,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04075__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    92
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "AE1"
+   ],
+   "score": 32,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04075__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    94
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": true,
+   "idr_upstream": true,
+   "hit_rules": [
+    "AE1",
+    "FG4",
+    "FG5"
+   ],
+   "score": 73,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_04075__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 25,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04075__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    93
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "AE1",
+    "PE2"
+   ],
+   "score": 51,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_04075__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    94
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "AE1"
+   ],
+   "score": 32,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04075__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    74
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 32,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04075__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    93
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "AE1"
+   ],
+   "score": 32,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04591__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    125,
+    126,
+    127
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "SC2"
+   ],
+   "score": 28,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04591__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    6
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 6,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04591__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    85
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 6,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04591__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    85
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "TM1"
+   ],
+   "score": 28,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04591__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    7
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 6,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04591__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    90
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2",
+    "RA2",
+    "TM1"
+   ],
+   "score": 39,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04591__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    124
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "EA2"
+   ],
+   "score": 13,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04591__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    28,
+    29,
+    30
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 6,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04591__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    121
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 6,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04712__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    25
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04712__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    6
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04712__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    26
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04712__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    25,
+    26
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": true,
+   "idr_upstream": false,
+   "hit_rules": [
+    "FG5"
+   ],
+   "score": 21,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04712__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    8
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04712__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    26
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2",
+    "TM2"
+   ],
+   "score": 29,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04712__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    26
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04712__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "E1"
+   ],
+   "score": 6,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_04712__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    26
+   ],
+   "gdr": false,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 0,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05057__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    150
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 27,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05057__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    4
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 27,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05057__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    780,
+    781,
+    782,
+    783,
+    784,
+    785,
+    786,
+    787,
+    788
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 27,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05057__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    78
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "SC3"
+   ],
+   "score": 49,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05057__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    4
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 27,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05057__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    80
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2",
+    "TM2"
+   ],
+   "score": 56,
+   "recommendation": "DO_NOT_INSTALL",
+   "upstream_recommendation": "DO_NOT_INSTALL"
+  },
+  {
+   "id": "case_05057__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    39
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 27,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05057__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    101
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 27,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05057__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    120,
+    121,
+    122,
+    123,
+    124,
+    125,
+    126,
+    127,
+    128
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 27,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05428__arbitrary_script_execution__K3",
+   "threat": "arbitrary_script_execution",
+   "injected_lines": [
+    47
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05428__credential_exposure__K3",
+   "threat": "credential_exposure",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "LP3"
+   ],
+   "score": 7,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_05428__data_exfiltration__K3",
+   "threat": "data_exfiltration",
+   "injected_lines": [
+    22
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "E1"
+   ],
+   "score": 15,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05428__guardfall__K3",
+   "threat": "guardfall",
+   "injected_lines": [
+    53
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": true,
+   "idr_upstream": false,
+   "hit_rules": [
+    "FG5"
+   ],
+   "score": 27,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05428__indirect_injection__K3",
+   "threat": "indirect_injection",
+   "injected_lines": [
+    3
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "LP3"
+   ],
+   "score": 7,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_05428__privilege_escalation__K3",
+   "threat": "privilege_escalation",
+   "injected_lines": [
+    43
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "PE2"
+   ],
+   "score": 14,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_05428__prompt_hijacking__K3",
+   "threat": "prompt_hijacking",
+   "injected_lines": [
+    51
+   ],
+   "gdr": true,
+   "idr": true,
+   "idr_static": true,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": true,
+   "hit_rules": [
+    "EA2"
+   ],
+   "score": 15,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  },
+  {
+   "id": "case_05428__resource_exhaustion__K3",
+   "threat": "resource_exhaustion",
+   "injected_lines": [
+    53
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "CAUTION",
+   "upstream_recommendation": "CAUTION"
+  },
+  {
+   "id": "case_05428__supply_chain__K3",
+   "threat": "supply_chain",
+   "injected_lines": [
+    53
+   ],
+   "gdr": true,
+   "idr": false,
+   "idr_static": false,
+   "idr_judge": false,
+   "idr_fork_rules": false,
+   "idr_upstream": false,
+   "hit_rules": [],
+   "score": 7,
+   "recommendation": "SAFE",
+   "upstream_recommendation": "SAFE"
+  }
+ ]
+}
