@@ -58,6 +58,12 @@ mcp = [
 langgraph-dev = [
     "langgraph-cli[inmem]>=0.4.14",
 ]
+# Fork: local web UI (python -m skillspector.ext.webui)
+ui = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+    "python-multipart>=0.0.9",
+]
 dev = [
     "skillspector[mcp]",
     "skillspector[langgraph-dev]",
