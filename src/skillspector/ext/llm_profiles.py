@@ -173,6 +173,9 @@ def profile_ready(name: str, env: Mapping[str, str]) -> tuple[bool, str | None]:
     return True, None
 
 
+_KEY_ECHO = re.compile(r"\b(?:sk|nvapi|key)[-_A-Za-z0-9]*\*+[A-Za-z0-9*]*", re.I)
+
+
 def probe_profile(name: str, env: Mapping[str, str], timeout: float = 45.0) -> dict:
     """Send one tiny request with the profile's real key to see if inference works now."""
     import time
@@ -239,10 +242,12 @@ def probe_profile(name: str, env: Mapping[str, str], timeout: float = 45.0) -> d
         410: "model retired",
         429: "rate limited or out of credit",
     }.get(response.status_code, "request failed")
+    # Providers echo part of the key back ("sk-svcac****"); never pass that on.
+    message = _KEY_ECHO.sub("[key]", str(message))
     return {
         "profile": name,
         "ok": False,
         "seconds": seconds,
         "status": response.status_code,
-        "detail": f"{hint}: {str(message)[:160]}",
+        "detail": f"{hint}: {message[:160]}",
     }
