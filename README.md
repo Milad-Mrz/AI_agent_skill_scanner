@@ -1,3 +1,72 @@
+# AI Agent Skill Scanner (SkillSpector fork)
+
+A local web app that checks AI agent skills (Claude Code, Codex, … `SKILL.md` bundles) **before you install them**, and keeps only the ones that come out clean. It builds on [NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector), whose original documentation follows below. Fork code lives in `src/skillspector/ext/`. See [FORK.md](FORK.md) for details and [docs/BENCHMARK.md](docs/BENCHMARK.md) for measured accuracy.
+
+## Quick start
+
+```bash
+git clone https://github.com/Milad-Mrz/AI_agent_skill_scanner.git
+cd AI_agent_skill_scanner
+git checkout fork/main
+uv venv --python 3.12 .venv && source .venv/bin/activate   # or: python3.12 -m venv .venv
+uv pip install -e ".[ui]"                                   # or: pip install -e ".[ui]"
+```
+
+Put the API keys you have in a `.env` file in the repository folder. The file is gitignored, so it is never committed. Each key is optional:
+
+```
+OPENAI_API_KEY=...          # GPT-6.1 Sol
+ANTHROPIC_API_KEY=...       # Claude Sonnet 5.5
+NVIDIA_INFERENCE_KEY=...    # open models on NVIDIA Build (free developer tier)
+```
+
+Start the app, then open **http://127.0.0.1:8765**:
+
+```bash
+python -m skillspector.ext.webui
+```
+
+The app is reachable only from your own machine. The **Sandbox** operation also needs Docker.
+
+## How to use it
+
+1. **Scan, step 1 (Repositories):** paste one or more GitHub links (or local folders) and click **Add**. Each repository is fetched once and split into its skills.
+2. **Scan, step 2 (Operations):** pick what to run:
+   - **SkillSpector-MM:** static rules, free and fast.
+   - **A model** (GPT-6.1 Sol, Claude Sonnet 5.5, …): an LLM review of the whole skill.
+   - **Explain:** a plain-English list of every instruction.
+   - **Sandbox:** a real agent runs the skill in an isolated container with fake secrets.
+   - **Pin:** records the files, so later changes can be detected.
+
+   Click **Run**.
+3. **Scan, step 3 (Runs):** shows each repository, its skills and every task's progress live. You can **Stop**, **Redo**, **Run selected methods** to add another method, or **Remove scans**. The **API usage** panel shows tokens and estimated cost.
+4. **Skill Library:** decide what to keep.
+   - **Colours:** each skill is green, yellow or red according to its combined verdict. Static, Explain and Sandbox must each pass, but one passing LLM review is enough.
+   - **Deleting:** use **Delete red**, **Delete red + yellow** or **Delete selected**, or fix a skill and redo its scans.
+   - **Cleaned:** a repository is **CLEANED** when every remaining skill is green.
+5. **Saved Skills:** when every remaining skill has passed static, an LLM review, Explain and Sandbox, click **Save to Saved Skills**. The cleaned copy, with a review manifest and file hashes, moves here and leaves Scan and the Library. **Download** it to install, and use **Verify files** at any time to confirm it hasn't changed.
+
+Use the button in the header to switch between the light and dark themes.
+
+## Command line
+
+```bash
+python -m skillspector.ext.review <url|folder|zip> --out review.json [--no-llm]
+python -m skillspector.ext.sandbox <url|folder> --profile sol-medium --out sandbox.json
+python -m skillspector.ext.pin pin|verify|list ...
+```
+
+When no LLM profile is set, `review` runs static only. To use a model, run it with that model's environment, as the UI does (see `src/skillspector/ext/llm_profiles.py`).
+
+## Good to know
+- **A clean result doesn't prove a skill is safe.** It means none of the checks found a problem. Read anything you install, and re-verify pinned or saved copies after updates.
+- **Costs are estimates** from list prices, which you can edit in `~/.local/share/skill-scanner/pricing.json`. Your provider's dashboard shows the real bill.
+- **Docker shares the host kernel.** For high-risk skills, run the sandbox on a separate machine.
+
+---
+
+*Original SkillSpector documentation:*
+
 # SkillSpector
 
 **Security scanner for AI agent skills.** Detect vulnerabilities, malicious patterns, and security risks before installing agent skills.
