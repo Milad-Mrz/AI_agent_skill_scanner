@@ -583,3 +583,45 @@ def test_failed_stage_does_not_count_as_a_done_check(client: TestClient, tmp_pat
     )
     green = next(s for s in client.get("/api/library").json()[0]["skills"] if s["name"] == "green")
     assert green["checks"]["explain"] is False
+
+
+def test_api_keys_panel_masks_keys_and_blocks_failing_models(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from skillspector.ext import llm_profiles
+
+    dotenv = tmp_path / "keys.env"
+    dotenv.write_text(
+        "OPENAI_API_KEY=sk-oldkey-1234567890abcd\nANTHROPIC_API_KEY=sk-ant-good-0987654321\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(webui, "DOTENV", dotenv)
+    monkeypatch.delenv("NVIDIA_INFERENCE_KEY", raising=False)
+    webui._probe_cache.clear()
+
+    def fake_probe(name, env, timeout=45.0):
+        if name == "sol-medium":
+            return {
+                "profile": name,
+                "ok": False,
+                "status": 401,
+                "seconds": 0.1,
+                "detail": "key rejected: Your API key has been invalidated.",
+            }
+        return {"profile": name, "ok": True, "seconds": 0.5, "detail": "inference works"}
+
+    monkeypatch.setattr(llm_profiles, "probe_profile", fake_probe)
+    data = client.get("/api/keys").json()
+    keys = {k["var"]: k for k in data["keys"]}
+    assert keys["OPENAI_API_KEY"]["status"] == "failed"
+    assert keys["OPENAI_API_KEY"]["masked"] == "sk-old…abcd"
+    assert "1234567890" not in str(data)  # never the full key
+    assert keys["ANTHROPIC_API_KEY"]["status"] == "ok"
+    assert keys["NVIDIA_INFERENCE_KEY"]["status"] == "missing"
+    ops = {o["id"]: o for o in client.get("/api/operations").json()}
+    assert (
+        ops["model:sol-medium"]["ready"] is False
+        and "key rejected" in ops["model:sol-medium"]["missing"]
+    )
+    assert ops["model:sonnet"]["ready"] is True
+    webui._probe_cache.clear()

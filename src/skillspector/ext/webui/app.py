@@ -403,6 +403,10 @@ def _check_profile(profile: str) -> None:
         profile_env(profile, dotenv=DOTENV)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
+    if failure := _probe_failure(profile):
+        raise HTTPException(
+            400, f"{PROFILE_LABELS.get(profile, profile)}: {failure}; fix the key and re-test"
+        )
 
 
 def _submit(
@@ -796,6 +800,8 @@ def operations_catalog() -> list[dict]:
     ]
     for name in PROFILES:
         ready, missing = profile_ready(name, env)
+        if ready and (failure := _probe_failure(name)):
+            ready, missing = False, f"a working key ({failure})"
         provider = PROFILES[name]["SKILLSPECTOR_PROVIDER"]
         ops.append(
             {
@@ -849,18 +855,110 @@ def operations_catalog() -> list[dict]:
     return ops
 
 
+# Results of the last real request per profile, keyed by a fingerprint of the key
+# so editing .env invalidates them.
+_probe_cache: dict[str, dict] = {}
+_PROBE_MAX_AGE = 600.0
+KEY_VARS = ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "NVIDIA_INFERENCE_KEY")
+
+
+def _env() -> dict[str, str]:
+    return {**read_dotenv(DOTENV), **os.environ}
+
+
+def _fingerprint(value: str) -> str:
+    import hashlib
+
+    return hashlib.sha256(value.encode()).hexdigest()[:12]
+
+
+def _mask(value: str) -> str:
+    if not value:
+        return ""
+    return f"{value[:6]}…{value[-4:]}" if len(value) > 12 else "…" * 3
+
+
+def _probe_all(force: bool = False) -> list[dict]:
+    """One tiny real request per keyed profile, cached; re-run when stale or forced."""
+    from skillspector.ext.llm_profiles import REQUIRED_KEY, probe_profile
+
+    env = _env()
+    todo, results = [], []
+    for name in PROFILES:
+        key_var = REQUIRED_KEY.get(name)
+        if not key_var or not env.get(key_var):
+            continue
+        cache_key = f"{name}:{_fingerprint(env[key_var])}"
+        cached = _probe_cache.get(cache_key)
+        if cached and not force and time.time() - cached["tested_at"] < _PROBE_MAX_AGE:
+            results.append(cached)
+        else:
+            todo.append((name, cache_key))
+    if todo:
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            fresh = list(pool.map(lambda item: probe_profile(item[0], env), todo))
+        for (name, cache_key), result in zip(todo, fresh, strict=True):
+            result.update(
+                label=PROFILE_LABELS.get(name, name),
+                tested_at=time.time(),
+                key_var=REQUIRED_KEY.get(name),
+            )
+            for stale in [k for k in _probe_cache if k.startswith(f"{name}:")]:
+                _probe_cache.pop(stale)
+            _probe_cache[cache_key] = result
+            results.append(result)
+    return sorted(results, key=lambda r: list(PROFILES).index(r["profile"]))
+
+
+def _probe_failure(name: str) -> str | None:
+    """Reason a profile failed its last real request with the current key, if it did."""
+    from skillspector.ext.llm_profiles import REQUIRED_KEY
+
+    key_var = REQUIRED_KEY.get(name)
+    value = _env().get(key_var or "", "")
+    result = _probe_cache.get(f"{name}:{_fingerprint(value)}") if value else None
+    if result and result.get("ok") is False:
+        return result["detail"].split(":")[0]
+    return None
+
+
 @app.post("/api/models/test")
 def test_models() -> list[dict]:
-    """One tiny real request per model that has a key, run in parallel."""
-    from skillspector.ext.llm_profiles import probe_profile
+    """One tiny real request per model that has a key (always fresh)."""
+    return _probe_all(force=True)
 
-    env = {**read_dotenv(DOTENV), **os.environ}
-    names = [n for n in PROFILES if profile_ready(n, env)[0]]
-    with ThreadPoolExecutor(max_workers=6) as pool:
-        results = list(pool.map(lambda n: probe_profile(n, env), names))
-    for result in results:
-        result["label"] = PROFILE_LABELS.get(result["profile"], result["profile"])
-    return results
+
+@app.get("/api/keys")
+def api_keys(force: bool = False) -> dict:
+    """Every API key in the environment (masked) with the live status of the models using it."""
+    from skillspector.ext.llm_profiles import REQUIRED_KEY
+
+    env = _env()
+    probes = _probe_all(force=force)
+    keys = []
+    for var in KEY_VARS:
+        users = [n for n in PROFILES if REQUIRED_KEY.get(n) == var]
+        models = [p for p in probes if p["key_var"] == var]
+        if not env.get(var):
+            status = "missing"
+        elif models and all(m["ok"] for m in models):
+            status = "ok"
+        elif any(m["ok"] for m in models):
+            status = "partial"
+        else:
+            status = "failed"
+        keys.append(
+            {
+                "var": var,
+                "present": bool(env.get(var)),
+                "masked": _mask(env.get(var, "")),
+                "status": status,
+                "used_by": [PROFILE_LABELS.get(n, n).split(" (")[0] for n in users],
+                "models": models,
+            }
+        )
+    tested = [p["tested_at"] for p in probes]
+    return {"keys": keys, "tested_at": max(tested) if tested else None}
 
 
 @app.get("/api/operations")

@@ -173,19 +173,36 @@ function updateRunSummary() {
     : "Select repositories and operations.";
   $("#run-btn").disabled = !total;
 }
-$("#test-models").addEventListener("click", async () => {
-  const box = $("#model-status");
-  $("#test-models").disabled = true;
-  box.replaceChildren(el("span", { class: "spinner" }), "testing…");
+// ---- API keys (live check) ----
+const KEY_STATUS = {
+  ok: ["SAFE", "works"], partial: ["CAUTION", "some models fail"], failed: ["DO_NOT_INSTALL", "not working"],
+  missing: ["", "not set"],
+};
+async function loadKeys(force = false) {
+  const box = $("#keys");
+  $("#keys-retest").disabled = true;
+  if (force || !box.children.length) box.replaceChildren(el("span", { class: "spinner" }), "testing keys…");
   try {
-    const results = await api("/api/models/test", { method: "POST" });
-    box.replaceChildren(...results.map((r) => el("span", {
-      class: `rec-badge ${r.ok ? "SAFE" : "DO_NOT_INSTALL"}`, title: r.detail,
-      text: `${r.label.split(" (")[0]}: ${r.ok ? `ok ${r.seconds}s` : (r.status || "fail")}` })),
-      ...results.filter((r) => !r.ok).map((r) => el("div", { class: "desc", text: `${r.label.split(" (")[0]}: ${r.detail}` })));
-  } catch (err) { box.textContent = err.message; }
-  $("#test-models").disabled = false;
-});
+    const data = await api(`/api/keys${force ? "?force=true" : ""}`);
+    box.replaceChildren(...data.keys.map((k) => {
+      const [cls, text] = KEY_STATUS[k.status] || ["", k.status];
+      return el("div", { class: "key-row" },
+        el("code", { class: "key-var", text: k.var }),
+        el("code", { class: "desc", text: k.present ? k.masked : "—" }),
+        el("span", { class: `rec-badge ${cls}`, text }),
+        el("span", { class: "key-models" }, ...(k.models.length ? k.models.map((m) =>
+          el("span", { class: `rec-badge ${m.ok ? "SAFE" : "DO_NOT_INSTALL"}`, title: m.detail,
+            text: `${m.label.split(" (")[0]}: ${m.ok ? `ok · ${m.seconds}s` : m.detail.split(":")[0]}` }))
+          : [el("span", { class: "desc", text: k.present ? "" : `used by ${k.used_by.join(", ")}: add it to .env` })])));
+    }));
+    $("#keys-time").textContent = data.tested_at ? `tested ${new Date(data.tested_at * 1000).toLocaleTimeString()}` : "";
+    await loadOperations(); // tiles of failing keys become unavailable
+    updateRunSummary();
+  } catch (err) { box.textContent = `Key test failed: ${err.message}`; }
+  $("#keys-retest").disabled = false;
+}
+$("#keys-retest").addEventListener("click", () => loadKeys(true));
+setInterval(() => loadKeys(false), 10 * 60 * 1000);
 
 $("#run-btn").addEventListener("click", async () => {
   $("#run-btn").disabled = true;
@@ -938,7 +955,7 @@ function renderMergedFindings(root, issues) {
   draw();
 }
 
-Promise.all([loadRepos(), loadOperations(), loadJobs()]).catch((err) => { $("#run-error").textContent = `Could not reach the server: ${err.message}`; });
+Promise.all([loadRepos(), loadOperations(), loadJobs()]).then(() => loadKeys(false)).catch((err) => { $("#run-error").textContent = `Could not reach the server: ${err.message}`; });
 
 // ---- saved skills ----
 async function loadSaved() {
