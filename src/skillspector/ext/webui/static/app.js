@@ -181,6 +181,7 @@ const KEY_STATUS = {
 async function loadKeys(force = false) {
   const box = $("#keys");
   $("#keys-retest").disabled = true;
+  $("#keys-busy").hidden = false;
   if (force || !box.children.length) box.replaceChildren(el("span", { class: "spinner" }), "testing keys…");
   try {
     const data = await api(`/api/keys${force ? "?force=true" : ""}`);
@@ -198,6 +199,7 @@ async function loadKeys(force = false) {
     await loadOperations(); // tiles of failing keys become unavailable
     updateRunSummary();
   } catch (err) { box.textContent = `Key test failed: ${err.message}`; }
+  $("#keys-busy").hidden = true;
   $("#keys-retest").disabled = false;
 }
 $("#keys-retest").addEventListener("click", () => loadKeys(true));
@@ -263,13 +265,30 @@ function mergeIssues(items) {
   return [...merged.values()].sort((x, y) => SEV_ORDER.indexOf(x.sev) - SEV_ORDER.indexOf(y.sev));
 }
 
+function setProgress(bar, done, total) {
+  bar.hidden = !total;
+  if (!total) return;
+  const pct = Math.round((100 * done) / total);
+  bar.querySelector(".progress-fill").style.width = `${pct}%`;
+  bar.querySelector(".progress-text").textContent = `${done}/${total} · ${pct}%`;
+}
+function progressBar(done, total) {
+  const bar = el("span", { class: "progress small" }, el("span", { class: "progress-fill" }), el("span", { class: "progress-text" }));
+  setProgress(bar, done, total);
+  return bar;
+}
 function renderRuns() {
   const box = $("#runs");
   box.replaceChildren();
-  if (!jobs.length) { box.append(el("div", { class: "empty", text: "No runs yet." })); return; }
   const queued = jobs.filter((j) => j.status === "queued").sort((a, b) => a.started - b.started);
   const running = jobs.filter((j) => j.status === "running").length;
-  $("#queue-summary").textContent = `${running} running · ${queued.length} waiting · ${jobs.filter((j) => j.status === "done").length} done`;
+  const summary = `${running} running · ${queued.length} waiting · ${jobs.filter((j) => j.status === "done").length} done`;
+  $("#queue-summary").replaceChildren(...(running || queued.length ? [el("span", { class: "spinner" })] : []), summary);
+  // Progress over the repositories that still have work: finished / all of their tasks.
+  const busySources = new Set(jobs.filter((j) => j.status === "queued" || j.status === "running").map((j) => j.source));
+  const inScope = jobs.filter((j) => busySources.has(j.source));
+  setProgress($("#overall-progress"), inScope.filter((j) => FINISHED.includes(j.status)).length, inScope.length);
+  if (!jobs.length) { box.append(el("div", { class: "empty", text: "No runs yet." })); return; }
   $("#stop-all").disabled = !(running || queued.length);
   const bySource = new Map();
   for (const j of jobs) {
@@ -332,6 +351,7 @@ function sourceBlock(source, tasks, queued) {
     icon(/^https?:\/\//.test(source) ? "github" : "folder"),
     el("span", { class: "ftitle" }, el("strong", { text: name }), el("span", { class: "desc", text: ` ${items.length} skill(s)` })),
     el("span", { class: "rule", text: `${done}/${tasks.length} tasks${cost ? ` · ≈ $${cost.toFixed(2)}` : ""}` }),
+    active ? progressBar(done, tasks.length) : "",
     worst ? el("span", { class: `rec-badge ${worst}`, text: worst.replaceAll("_", " ") }) : "",
     actions),
     el("div", { class: "item-list" }, ...items.map(([k, its]) => itemBlock(source, k, its, queued))));
@@ -408,6 +428,7 @@ function taskRow(j, queued) {
     ? el("span", { class: `rec-badge ${j.recommendation}`, text: `${j.score} · ${j.recommendation.replaceAll("_", " ")}` })
     : j.status === "done" ? el("span", { class: "rec-badge", text: "done" })
     : ["error", "cancelled", "interrupted"].includes(j.status) ? el("span", { class: "rec-badge DO_NOT_INSTALL", text: j.status, title: j.error || "" })
+    : j.status === "running" ? el("span", { class: "rec-badge" }, el("span", { class: "spinner" }), "running")
     : el("span", { class: "rec-badge", text: j.status });
   const actions = el("span", { class: "task-actions" });
   if (j.status === "done") actions.append(el("button", { text: "Open", onclick: () => openTask(j.id) }));

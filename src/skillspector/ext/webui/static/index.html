@@ -24,7 +24,7 @@
   <section id="tab-batch" class="panel">
     <div class="card keys-card">
       <div class="findings-head"><h2 class="step">API keys</h2>
-        <span class="runs-tools"><span id="keys-time" class="hint"></span><button id="keys-retest" type="button">Re-test</button></span></div>
+        <span class="runs-tools"><span id="keys-busy" class="hint" hidden><span class="spinner"></span>testing…</span><span id="keys-time" class="hint"></span><button id="keys-retest" type="button">Re-test</button></span></div>
       <div id="keys"></div>
     </div>
     <div class="card">
@@ -58,6 +58,7 @@
       <div class="findings-head"><h2 class="step"><span class="step-n">3</span> Runs</h2>
         <span class="runs-tools"><span id="queue-summary" class="hint"></span>
           <button id="stop-all" class="danger" type="button" title="Stop running tasks and clear the waiting list">Stop all</button></span></div>
+      <div id="overall-progress" class="progress" hidden><div class="progress-fill"></div><span class="progress-text"></span></div>
       <details id="usage" class="usage-panel"><summary>API usage</summary></details>
       <div id="runs"></div>
     </div>

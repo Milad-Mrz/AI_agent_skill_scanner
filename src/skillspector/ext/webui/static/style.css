@@ -139,6 +139,19 @@ a { color: var(--accent); }
   vertical-align: -2px; margin-right: 8px;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+.rec-badge .spinner { width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; }
+.progress { position: relative; display: block; height: 18px; margin: 8px 0 12px; border: 1px solid var(--border);
+  border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.progress[hidden] { display: none; }
+.progress.small { display: inline-block; width: 140px; height: 14px; margin: 0; vertical-align: middle; }
+.progress-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--accent); transition: width .4s ease;
+  background-image: linear-gradient(45deg, rgba(255,255,255,.18) 25%, transparent 25%, transparent 50%,
+    rgba(255,255,255,.18) 50%, rgba(255,255,255,.18) 75%, transparent 75%);
+  background-size: 18px 18px; animation: stripes 1s linear infinite; }
+.progress-text { position: relative; display: block; text-align: center; font-size: 11px; line-height: 16px; font-weight: 700;
+  color: var(--text); text-shadow: 0 0 3px var(--bg), 0 0 3px var(--bg); }
+.progress.small .progress-text { line-height: 12px; font-size: 10px; }
+@keyframes stripes { to { background-position: 18px 0; } }
 
 @media (max-width: 640px) {
   nav { margin-left: 0; width: 100%; }
