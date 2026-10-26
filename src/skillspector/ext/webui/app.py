@@ -139,6 +139,12 @@ def _job_usage(job: Job) -> dict | None:
     if usage := report.get("usage"):
         input_tokens += int(usage.get("input_tokens") or 0)
         output_tokens += int(usage.get("output_tokens") or 0)
+    else:
+        # Older scans: only the upstream LLM telemetry was kept.
+        upstream = report.get("report") if "report" in report else report
+        for entry in ((upstream or {}).get("metadata") or {}).get("inference_usage") or []:
+            input_tokens += int(entry.get("prompt_tokens") or 0)
+            output_tokens += int(entry.get("completion_tokens") or 0)
     events = (report.get("sandbox") or {}).get("events") or {}
     input_tokens += int(events.get("input_tokens") or 0)
     output_tokens += int(events.get("output_tokens") or 0)
@@ -1144,7 +1150,16 @@ def cancel_job(job_id: str) -> dict:
 # Skill library: keep / delete decisions per skill, cleaned repositories, export
 # ---------------------------------------------------------------------------
 
-_library: dict[str, dict[str, str]] = {}  # repo_id -> {skill path: "deleted" | "kept"}
+_library: dict[str, dict[str, str]] = {}
+# A repository can be saved only when every remaining skill passed all of these.
+REQUIRED_METHODS = ("static", "model", "explain", "sandbox")
+_METHOD_KINDS = {
+    "review-static": {"static"},
+    "review": {"static", "model"},  # model reviews include the static rules
+    "review-full": {"static", "model", "explain"},
+    "explain": {"explain"},
+    "sandbox": {"sandbox"},
+}  # repo_id -> {skill path: "deleted" | "kept"}
 
 
 def _library_path() -> Path:
@@ -1198,10 +1213,14 @@ def library_view() -> list[dict]:
             counts: dict[str, int] = {}
             for sev in merged.values():
                 counts[sev] = counts.get(sev, 0) + 1
+            done_kinds: set[str] = set()
+            for found in runs:
+                done_kinds |= _METHOD_KINDS.get(found.kind, set())
             skills.append(
                 {
                     "path": skill["path"],
                     "name": skill["name"],
+                    "checks": {m: m in done_kinds for m in REQUIRED_METHODS},
                     "state": states.get(skill["path"], "undecided"),
                     "recommendation": min(recs, key=lambda r: _REC_RANK.get(r, 3))
                     if recs
@@ -1219,6 +1238,8 @@ def library_view() -> list[dict]:
                 }
             )
         remaining = [s for s in skills if s["state"] != "deleted"]
+        cleaned = bool(remaining) and all(s["recommendation"] == "SAFE" for s in remaining)
+        fully_checked = bool(remaining) and all(all(s["checks"].values()) for s in remaining)
         out.append(
             {
                 "id": repo_record.id,
@@ -1227,8 +1248,9 @@ def library_view() -> list[dict]:
                 "skills": skills,
                 "remaining": len(remaining),
                 "deleted": len(skills) - len(remaining),
-                "cleaned": bool(remaining)
-                and all(s["recommendation"] == "SAFE" for s in remaining),
+                "cleaned": cleaned,
+                "fully_checked": fully_checked,
+                "ready_to_save": cleaned and fully_checked,
                 "unscanned": sum(1 for s in remaining if not s["recommendation"]),
             }
         )
@@ -1315,6 +1337,137 @@ def library_export(repo_id: str) -> FileResponse:
     return FileResponse(
         archive, filename=f"{bundle.name}-reviewed.zip", media_type="application/zip"
     )
+
+
+# ---------------------------------------------------------------------------
+# Saved skills: permanent store of fully cleaned repositories
+# ---------------------------------------------------------------------------
+
+
+def _saved_dir() -> Path:
+    return DATA_DIR / "saved"
+
+
+def _saved_index() -> list[dict]:
+    try:
+        return json.loads((_saved_dir() / "index.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+
+
+def _write_saved_index(entries: list[dict]) -> None:
+    _saved_dir().mkdir(parents=True, exist_ok=True)
+    (_saved_dir() / "index.json").write_text(json.dumps(entries, indent=1), encoding="utf-8")
+
+
+def _not_ready_reasons(view: dict) -> list[str]:
+    reasons = []
+    for skill in view["skills"]:
+        if skill["state"] == "deleted":
+            continue
+        missing = [m for m, ok in skill["checks"].items() if not ok]
+        if missing:
+            reasons.append(f"{skill['name']}: missing {', '.join(missing)}")
+        elif skill["recommendation"] != "SAFE":
+            reasons.append(f"{skill['name']}: {skill['recommendation'] or 'not scanned'}")
+    return reasons
+
+
+@app.post("/api/library/{repo_id}/save")
+def save_repo(repo_id: str) -> dict:
+    """Move a fully cleaned repository's skills into Saved skills and out of Scan/Library."""
+    repo_record = _repos.get(repo_id)
+    view = next((r for r in library_view() if r["id"] == repo_id), None)
+    if not repo_record or not view:
+        raise HTTPException(404, "unknown or not-ready repository")
+    if not view["ready_to_save"]:
+        raise HTTPException(400, "not cleaned yet: " + "; ".join(_not_ready_reasons(view)[:8]))
+    entry_id = uuid.uuid4().hex[:10]
+    target = _saved_dir() / entry_id
+    kept = [s for s in view["skills"] if s["state"] != "deleted"]
+    for skill in kept:
+        source_dir = Path(repo_record.root) / skill["path"]
+        relative = skill["path"] if skill["path"] != "." else skill["name"]
+        shutil.copytree(
+            source_dir,
+            target / "skills" / relative,
+            symlinks=False,
+            dirs_exist_ok=True,
+            ignore=shutil.ignore_patterns(".git"),
+        )
+    entry = {
+        "id": entry_id,
+        "source": repo_record.source,
+        "name": repo_record.name,
+        "saved_at": time.time(),
+        "commit": pins.read_commit(Path(repo_record.root)),
+        "skills": [
+            {k: s[k] for k in ("name", "path", "recommendation", "methods", "checks")} for s in kept
+        ],
+        "removed": [s["path"] for s in view["skills"] if s["state"] == "deleted"],
+    }
+    files = pins.hash_tree(target / "skills")
+    (target / "SKILL_REVIEW.json").write_text(
+        json.dumps({**entry, "files": files}, indent=1), encoding="utf-8"
+    )
+    entries = _saved_index() + [{**entry, "file_count": len(files)}]
+    _write_saved_index(entries)
+    # Leave Scan and Library: the saved copy is now the reference.
+    _delete_jobs([j for j in list(_jobs.values()) if j.source == repo_record.source])
+    with _lock:
+        _repos.pop(repo_id, None)
+    _library.pop(repo_id, None)
+    _save_repos()
+    _save_library()
+    shutil.rmtree(repo_record.root, ignore_errors=True)
+    return entries[-1]
+
+
+@app.get("/api/saved")
+def saved() -> list[dict]:
+    return sorted(_saved_index(), key=lambda e: -e["saved_at"])
+
+
+@app.get("/api/saved/{entry_id}/download")
+def saved_download(entry_id: str) -> FileResponse:
+    entry = next((e for e in _saved_index() if e["id"] == entry_id), None)
+    folder = _saved_dir() / entry_id
+    if not entry or not folder.is_dir():
+        raise HTTPException(404, "unknown saved entry")
+    work = Path(tempfile.mkdtemp(prefix="skillui-saved-"))
+    name = entry["name"].replace("/", "-")
+    archive = shutil.make_archive(str(work / name), "zip", root_dir=folder)
+    return FileResponse(archive, filename=f"{name}-saved.zip", media_type="application/zip")
+
+
+@app.post("/api/saved/{entry_id}/verify")
+def saved_verify(entry_id: str) -> dict:
+    """Check the saved copy still matches the hashes recorded when it was saved."""
+    folder = _saved_dir() / entry_id
+    try:
+        recorded = json.loads((folder / "SKILL_REVIEW.json").read_text(encoding="utf-8"))["files"]
+    except (OSError, ValueError, KeyError) as exc:
+        raise HTTPException(404, "unknown saved entry") from exc
+    current = pins.hash_tree(folder / "skills")
+    changed = sorted(p for p in recorded.keys() & current.keys() if recorded[p] != current[p])
+    added = sorted(current.keys() - recorded.keys())
+    removed = sorted(recorded.keys() - current.keys())
+    return {
+        "clean": not (changed or added or removed),
+        "changed": changed,
+        "added": added,
+        "removed": removed,
+    }
+
+
+@app.delete("/api/saved/{entry_id}")
+def saved_delete(entry_id: str) -> dict:
+    entries = _saved_index()
+    if not any(e["id"] == entry_id for e in entries):
+        raise HTTPException(404, "unknown saved entry")
+    _write_saved_index([e for e in entries if e["id"] != entry_id])
+    shutil.rmtree(_saved_dir() / entry_id, ignore_errors=True)
+    return {"deleted": entry_id}
 
 
 load_history()

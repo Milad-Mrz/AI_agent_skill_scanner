@@ -278,3 +278,10 @@ details.batch > summary .icon svg { width: 20px; height: 20px; display: block; }
 .lib-row.deleted { opacity: .55; }
 .lib-row.deleted strong { text-decoration: line-through; }
 details.library.cleaned > summary { box-shadow: inset 4px 0 0 var(--low); }
+
+/* ---- method checks + saved ---- */
+.checks { display: flex; flex-wrap: wrap; gap: 3px; }
+.check-chip { font-size: 10px; padding: 0 5px; border-radius: 3px; border: 1px solid var(--border); white-space: nowrap; }
+.check-chip.ok { color: var(--low); border-color: var(--low); }
+.check-chip.missing { color: var(--muted); border-style: dashed; }
+.lib-actions button.primary:disabled { opacity: .45; cursor: not-allowed; }

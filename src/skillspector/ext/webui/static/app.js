@@ -33,6 +33,7 @@ function showTab(name) {
   if (name === "history") loadHistory();
   if (name === "batch") loadJobs();
   if (name === "pins") loadPins();
+  if (name === "saved") loadSaved();
 }
 
 // ---- theme ----
@@ -763,7 +764,8 @@ function libraryBlock(r, filter, showDeleted) {
     groupButton("Delete selected", "danger", "Delete the ticked skills", () => ({ action: "delete", mode: "selected", skills: [...selected] })),
     groupButton("Keep selected", "", "Mark the ticked skills as reviewed and kept", () => ({ action: "keep", mode: "selected", skills: [...selected] })),
     r.deleted ? groupButton(`Restore all (${r.deleted})`, "", "Bring back every deleted skill", { action: "restore", mode: "all" }) : "",
-    exportLink);
+    exportLink,
+    saveButton(r));
 
   const status = r.cleaned
     ? el("span", { class: "rec-badge SAFE big", text: "✓ CLEANED" })
@@ -788,6 +790,27 @@ function libraryBlock(r, filter, showDeleted) {
   return block;
 }
 
+const CHECK_LABELS = { static: "static", model: "LLM", explain: "explain", sandbox: "sandbox" };
+function saveButton(r) {
+  const missing = r.skills.filter((s) => s.state !== "deleted").flatMap((s) => {
+    const gaps = Object.entries(s.checks || {}).filter(([, ok]) => !ok).map(([m]) => CHECK_LABELS[m]);
+    return gaps.length ? [`${s.name}: run ${gaps.join(", ")}`] : s.recommendation !== "SAFE" ? [`${s.name}: ${s.recommendation || "not scanned"}`] : [];
+  });
+  const b = el("button", { class: "primary", text: "Save to Saved Skills",
+    title: r.ready_to_save ? "Move the cleaned skills to Saved Skills" : `Not ready:\n${missing.slice(0, 12).join("\n")}` });
+  b.disabled = !r.ready_to_save;
+  b.addEventListener("click", async (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!confirmInline(b, "Click again to save and remove from Scan/Library")) return;
+    try {
+      await api(`/api/library/${r.id}/save`, { method: "POST" });
+      loadRepos(); loadHistory();
+      showTab("saved");
+    } catch (err) { b.textContent = err.message.slice(0, 80); }
+  });
+  return b;
+}
+
 function librarySkillRow(r, s, selected, act) {
   const box = el("input", { type: "checkbox", title: "Select" });
   box.checked = selected.has(s.path);
@@ -800,7 +823,9 @@ function librarySkillRow(r, s, selected, act) {
   const row = el("div", { class: "item-head clickable lib-row" + (s.state === "deleted" ? " deleted" : ""), title: "Show all results for this skill" },
     el("span", { class: "lib-check" }, box, el("span", { class: `dot ${s.recommendation || "none"}` })),
     el("span", { class: "task-name" }, el("strong", { text: s.name }), el("span", { class: "desc", text: s.path })),
-    el("span", { class: "sev-counts" }, ...counts),
+    el("span", { class: "sev-counts" }, ...counts,
+      el("span", { class: "checks" }, ...Object.entries(s.checks || {}).map(([m, ok]) =>
+        el("span", { class: `check-chip ${ok ? "ok" : "missing"}`, text: `${ok ? "✓" : "○"} ${CHECK_LABELS[m]}`, title: ok ? `${m} done` : `${m} not run yet` })))),
     el("span", { class: "method-badges" }, ...s.methods.map((m) => el("span", { class: `rec-badge ${m.recommendation || ""}`, text: `${m.label}: ${m.score ?? "–"}` }))),
     el("span", { class: "lib-state" }, s.state === "kept" ? el("span", { class: "rec-badge SAFE", text: "kept" }) : s.state === "deleted" ? el("span", { class: "rec-badge DO_NOT_INSTALL", text: "deleted" }) : ""),
     el("span", { class: "task-actions" }, single));
@@ -886,6 +911,42 @@ function renderMergedFindings(root, issues) {
 }
 
 Promise.all([loadRepos(), loadOperations(), loadJobs()]).catch((err) => { $("#run-error").textContent = `Could not reach the server: ${err.message}`; });
+
+// ---- saved skills ----
+async function loadSaved() {
+  const box = $("#saved");
+  const entries = await api("/api/saved");
+  if (!entries.length) { box.replaceChildren(el("div", { class: "empty", text: "Nothing saved yet. Clean a repository in the Skill Library, then Save it." })); return; }
+  box.replaceChildren(...entries.map((e) => {
+    const status = el("span", { class: "desc" });
+    const verify = el("button", { text: "Verify files", title: "Check the saved files still match their recorded hashes" });
+    verify.addEventListener("click", async (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      const v = await api(`/api/saved/${e.id}/verify`, { method: "POST" });
+      status.replaceChildren(v.clean ? el("span", { class: "cov", text: "unchanged ✓" })
+        : el("span", { class: "cov warn", text: `CHANGED: ${v.changed.length} modified, ${v.added.length} added, ${v.removed.length} removed` }));
+    });
+    const remove = el("button", { class: "danger", text: "Delete" });
+    remove.addEventListener("click", async (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      if (!confirmInline(remove, "Click again to delete")) return;
+      await api(`/api/saved/${e.id}`, { method: "DELETE" }); loadSaved();
+    });
+    const download = el("a", { class: "btn-like", href: `/api/saved/${e.id}/download`, text: "Download (.zip)" });
+    download.addEventListener("click", (ev) => ev.stopPropagation());
+    return el("details", { class: "batch library cleaned" },
+      el("summary", {}, icon(/^https?:\/\//.test(e.source) ? "github" : "folder"),
+        el("span", { class: "ftitle" }, el("strong", { text: e.name }), el("span", { class: "desc", text: ` ${e.skills.length} skill(s) · ${e.file_count} files · saved ${new Date(e.saved_at * 1000).toLocaleString()}${e.commit ? " · commit " + e.commit.slice(0, 10) : ""}` })),
+        el("span", { class: "rec-badge SAFE", text: "✓ CLEANED" }), status,
+        el("span", { class: "batch-actions" }, verify, download, remove)),
+      el("div", { class: "item-list" }, ...e.skills.map((sk) => el("div", { class: "item-head" },
+        el("span", { class: "task-name" }, el("strong", { text: sk.name }), el("span", { class: "desc", text: sk.path })),
+        el("span", { class: "checks" }, ...Object.entries(sk.checks || {}).map(([m, ok]) => el("span", { class: `check-chip ${ok ? "ok" : "missing"}`, text: `${ok ? "✓" : "○"} ${CHECK_LABELS[m]}` }))),
+        el("span", { class: "method-badges" }, ...(sk.methods || []).map((m) => el("span", { class: `rec-badge ${m.recommendation || ""}`, text: `${m.label}: ${m.score ?? "–"}` }))),
+        el("span", { class: "rec-badge SAFE", text: "SAFE" }), el("span")))),
+      e.removed.length ? el("p", { class: "hint", text: `Removed before saving: ${e.removed.join(", ")}` }) : "");
+  }));
+}
 
 // ---- pins ----
 async function loadPins() {
