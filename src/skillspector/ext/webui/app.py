@@ -225,6 +225,14 @@ def _save(job: Job) -> None:
     tmp.replace(path)
 
 
+def _sandbox_reached_model(report: dict | None) -> bool:
+    events = ((report or {}).get("sandbox") or {}).get("events") or {}
+    return any(
+        e.get("kind") == "llm_call" and e.get("status") == 200
+        for e in events.get("gateway_events") or []
+    )
+
+
 def load_history() -> None:
     """Load saved scans; jobs that were queued or running when the server stopped are marked."""
     folder = DATA_DIR / "scans"
@@ -237,6 +245,15 @@ def load_history() -> None:
         except (OSError, ValueError, TypeError, KeyError):
             continue
         job.report = record.get("report")
+        if (
+            job.status == "done"
+            and job.kind == "sandbox"
+            and not _sandbox_reached_model(job.report)
+        ):
+            # Older runs counted a sandbox whose agent never got a model reply as clean.
+            job.status = "error"
+            job.error = "the agent never got a model reply, so nothing was tested (API failed)"
+            _save(job)
         if job.status in {"queued", "running"}:
             job.status = "interrupted"
             job.error = "The server stopped before this task finished. Run it again."
@@ -841,6 +858,9 @@ class BatchRequest(BaseModel):
     repos: list[str]
     operations: list[str]
     strict: bool = True
+    helper_profile: str | None = Field(
+        default=None, description="model for Explain and Sandbox; default: first selected model"
+    )
     skills: dict[str, list[str]] | None = Field(
         default=None, description="optional {repo_id: [skill paths]}; default all skills"
     )
@@ -856,12 +876,14 @@ def run_batch(request: BatchRequest) -> dict:
     if not_ready:
         raise HTTPException(400, f"not available: {', '.join(not_ready)}")
     model_ops = [op for op in chosen if op["kind"] == "review"]
-    helper_profile = model_ops[0]["profile"] if model_ops else None
-    if helper_profile is None and any(op["needs_model"] for op in chosen):
-        ready_sol = catalog.get("model:sol-medium", {}).get("ready")
-        if not ready_sol:
-            raise HTTPException(400, "Explain and Sandbox need a model: select a model tile too")
-        helper_profile = "sol-medium"
+    helper_profile = request.helper_profile or (model_ops[0]["profile"] if model_ops else None)
+    if any(op["needs_model"] for op in chosen):
+        if helper_profile is None:
+            raise HTTPException(400, "Explain and Sandbox need a model: pick one next to Run")
+        helper_op = catalog.get(f"model:{helper_profile}")
+        if not helper_op or not helper_op["ready"]:
+            missing = (helper_op or {}).get("missing") or "an unknown profile"
+            raise HTTPException(400, f"the Explain/Sandbox model is not available: needs {missing}")
     batch_id = uuid.uuid4().hex[:8]
     created: list[dict] = []
     for repo_id in request.repos:

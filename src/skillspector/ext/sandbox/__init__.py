@@ -473,7 +473,12 @@ def run_sandbox(
             "model": model,
             "runtime": "docker",
         }
-        if not strace:
+        llm_ok = [e for e in events if e.get("kind") == "llm_call" and e.get("status") == 200]
+        llm_failed = [e for e in events if e.get("kind") == "llm_call" and e.get("status") != 200]
+        if not llm_ok:
+            detail = (llm_failed[0].get("error") or "")[:300] if llm_failed else "no model call"
+            result.error = f"the agent never got a model reply, so nothing was tested: {detail}"
+        elif not strace:
             result.error = (
                 f"no strace output (container exit {run.returncode}): {run.stderr[-300:]}"
             )

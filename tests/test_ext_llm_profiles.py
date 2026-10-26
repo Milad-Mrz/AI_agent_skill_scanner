@@ -92,3 +92,10 @@ def test_no_weak_local_models_are_offered() -> None:
 def test_hosted_open_profile_needs_nvidia_key() -> None:
     assert profile_ready("nv-deepseek", {}) == (False, "NVIDIA_INFERENCE_KEY")
     assert profile_ready("nv-deepseek", {"NVIDIA_INFERENCE_KEY": "k"}) == (True, None)
+
+
+def test_retired_nvidia_model_is_not_ready(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(llm_profiles, "nvidia_models", lambda key, max_age=600.0: {"z-ai/glm-5.3"})
+    assert profile_ready("nv-glm", {"NVIDIA_INFERENCE_KEY": "k"}) == (True, None)
+    ready, why = profile_ready("nv-deepseek", {"NVIDIA_INFERENCE_KEY": "k"})
+    assert not ready and "retired" in why

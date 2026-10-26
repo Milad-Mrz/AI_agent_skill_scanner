@@ -135,3 +135,10 @@ def test_upstream_fail_closed_caution_is_kept() -> None:
     result = {"verdict": verdict}
     review_mod.add_dynamic(result, {"findings": []})
     assert result["verdict"]["recommendation"] == "CAUTION"
+
+
+def test_failed_llm_stage_is_not_a_pass() -> None:
+    judge = {"findings": [], "ungrounded": [], "error": "model call failed: 410 Gone"}
+    verdict = review_mod.combined_verdict(_report(0), judge, None, True)
+    assert verdict["recommendation"] == "CAUTION"
+    assert any("did not run" in r for r in verdict["reasons"])
