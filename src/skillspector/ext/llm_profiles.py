@@ -34,6 +34,10 @@ PROFILES: dict[str, dict[str, str]] = {
         "SKILLSPECTOR_PROVIDER": "nv_build",
         "SKILLSPECTOR_MODEL": "z-ai/glm-5.3",
     },
+    "nv-minimax": {
+        "SKILLSPECTOR_PROVIDER": "nv_build",
+        "SKILLSPECTOR_MODEL": "minimaxai/minimax-m3.1-flash",
+    },
     "nv-kimi": {
         "SKILLSPECTOR_PROVIDER": "nv_build",
         "SKILLSPECTOR_MODEL": "moonshotai/kimi-k2.6",
@@ -45,6 +49,7 @@ PROFILE_LABELS: dict[str, str] = {
     "sol-medium": "GPT-6.1 Sol (medium effort)",
     "nv-deepseek": "DeepSeek V4.1 Flash (open, NVIDIA Build)",
     "nv-glm": "GLM-5.3 (open, NVIDIA Build)",
+    "nv-minimax": "MiniMax M3.1 Flash (open, NVIDIA Build)",
     "nv-kimi": "Kimi K2.6 (open, NVIDIA Build)",
 }
 
@@ -55,6 +60,7 @@ REQUIRED_KEY: dict[str, str | None] = {
     "sol-medium": "OPENAI_API_KEY",
     "nv-deepseek": "NVIDIA_INFERENCE_KEY",
     "nv-glm": "NVIDIA_INFERENCE_KEY",
+    "nv-minimax": "NVIDIA_INFERENCE_KEY",
     "nv-kimi": "NVIDIA_INFERENCE_KEY",
 }
 

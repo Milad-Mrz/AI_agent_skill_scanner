@@ -18,6 +18,7 @@ DEFAULT_PRICES: dict[str, tuple[float, float]] = {
     "deepseek-ai/deepseek-v4.1-flash": (0.0, 0.0),
     "z-ai/glm-5.3": (0.0, 0.0),
     "moonshotai/kimi-k2.6": (0.0, 0.0),
+    "minimaxai/minimax-m3.1-flash": (0.0, 0.0),
 }
 
 PRICING_FILE = (
