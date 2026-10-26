@@ -308,6 +308,7 @@ def test_combined_results_merge_methods_per_skill(client: TestClient) -> None:
         status="done",
         skill="alpha",
         operation="static",
+        kind="review-static",
         label="SkillSpector-MM",
         finished=1.0,
         report={
@@ -507,3 +508,30 @@ def test_save_requires_all_checks_then_moves_repo(client: TestClient, tmp_path: 
     assert client.post(f"/api/saved/{entry['id']}/verify").json()["clean"] is True
     assert client.get(f"/api/saved/{entry['id']}/download").status_code == 200
     assert client.delete(f"/api/saved/{entry['id']}").json()["deleted"] == entry["id"]
+
+
+def test_one_passing_llm_review_is_enough(client: TestClient, tmp_path: Path) -> None:
+    src = _library_fixture(tmp_path)
+
+    def add(job_id: str, kind: str, op: str, rec: str) -> None:
+        webui._jobs[job_id] = webui.Job(
+            id=job_id,
+            source=src,
+            profile="sol-medium",
+            status="done",
+            skill="green",
+            operation=op,
+            kind=kind,
+            finished=3.0,
+            report={"verdict": {"score": 0, "recommendation": rec, "issues": []}},
+        )
+
+    add("sol", "review", "model:sol-medium", "SAFE")
+    add("son", "review", "model:sonnet", "CAUTION")  # a second model disagrees
+    add("exp", "explain", "explain", "SAFE")
+    add("box", "sandbox", "sandbox", "SAFE")
+    green = next(s for s in client.get("/api/library").json()[0]["skills"] if s["name"] == "green")
+    assert green["recommendation"] == "SAFE"
+    add("box", "sandbox", "sandbox", "CAUTION")  # but static/explain/sandbox must each pass
+    green = next(s for s in client.get("/api/library").json()[0]["skills"] if s["name"] == "green")
+    assert green["recommendation"] == "CAUTION"

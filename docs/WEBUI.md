@@ -60,6 +60,7 @@ python -m skillspector.ext.webui     # http://127.0.0.1:8765  (localhost only)
   - **Separation from scans:** deleting in the library doesn't remove scan results. Scans are managed on the Scan page.
 - **Saved Skills:** the permanent store, for fully cleaned repositories only.
   - **When Save unlocks:** every remaining skill needs ✓ static, ✓ LLM, ✓ explain and ✓ sandbox, with no yellow or red result. The library shows that checklist on every skill, and the Save button lists what's missing.
+  - **One passing LLM is enough:** LLM model reviews are alternatives, so one API model with a SAFE verdict satisfies the LLM check, and a second model that disagrees doesn't block the skill. Static, Explain and Sandbox must each pass. This combined verdict drives the library colours, group deletes, CLEANED and Save, while every model's own result stays visible.
   - **How to get there:** fix and redo scans one by one, or delete the red and yellow skills.
   - **What Save does:** copies the skills with `SKILL_REVIEW.json` (verdicts, methods, commit, file hashes) to `~/.local/share/skill-scanner/saved/`, and removes the repository from Scan and the Library.
   - **On the Saved page:** download a zip, verify the files against their hashes, or delete.

@@ -960,6 +960,30 @@ _SEV_RANK = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
 _REC_RANK = {"DO_NOT_INSTALL": 0, "CAUTION": 1, "SAFE": 2}
 
 
+_LLM_KINDS = {"review", "review-full"}
+
+
+def effective_recommendation(runs: list[Job]) -> str | None:
+    """One verdict for a skill from its latest runs.
+
+    Static, Explain and Sandbox runs must each pass (their worst result counts), but
+    LLM model reviews are alternatives: passing one API model is enough, so the best
+    LLM verdict counts and a dissenting second model does not block the skill.
+    """
+    groups: dict[str, list[str]] = {}
+    for found in runs:
+        rec = found.summary().get("recommendation")
+        if rec:
+            groups.setdefault("llm" if found.kind in _LLM_KINDS else found.kind, []).append(rec)
+    picked = [
+        max(recs, key=lambda r: _REC_RANK.get(r, -1))
+        if group == "llm"
+        else min(recs, key=lambda r: _REC_RANK.get(r, 3))
+        for group, recs in groups.items()
+    ]
+    return min(picked, key=lambda r: _REC_RANK.get(r, 3)) if picked else None
+
+
 def _skill_of(job: Job) -> str:
     return job.skill or job.repo_name or job.source
 
@@ -1006,12 +1030,11 @@ def combined_results(source: str, skill: str | None = None) -> dict:
         _sandbox_job, sandbox = latest_with("sandbox")
         _reveal_job, reveal = latest_with("reveal")
         _judge_job, judge = latest_with("judge")
-        recs = [r for r in ((j.summary().get("recommendation")) for j in runs) if r]
         result.append(
             {
                 "skill": name,
                 "methods": [j.summary() for j in runs],
-                "recommendation": min(recs, key=lambda r: _REC_RANK.get(r, 3)) if recs else None,
+                "recommendation": effective_recommendation(runs),
                 "issues": sorted(
                     merged.values(),
                     key=lambda i: (_SEV_RANK.get(i.get("severity"), 5), -len(i["found_by"])),
@@ -1199,8 +1222,6 @@ def library_view() -> list[dict]:
         skills = []
         for skill in repo_record.skills:
             runs = results.get(skill["name"], [])
-            recs = [j.summary().get("recommendation") for j in runs]
-            recs = [r for r in recs if r]
             merged: dict[str, str] = {}
             for found in runs:
                 for rule, sev, file, line, _title in found.summary()["issues"]:
@@ -1222,9 +1243,7 @@ def library_view() -> list[dict]:
                     "name": skill["name"],
                     "checks": {m: m in done_kinds for m in REQUIRED_METHODS},
                     "state": states.get(skill["path"], "undecided"),
-                    "recommendation": min(recs, key=lambda r: _REC_RANK.get(r, 3))
-                    if recs
-                    else None,
+                    "recommendation": effective_recommendation(runs),
                     "methods": [
                         {
                             "label": j.label or j.operation,
