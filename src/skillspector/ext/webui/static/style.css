@@ -285,3 +285,6 @@ details.library.cleaned > summary { box-shadow: inset 4px 0 0 var(--low); }
 .check-chip.ok { color: var(--low); border-color: var(--low); }
 .check-chip.missing { color: var(--muted); border-style: dashed; }
 .lib-actions button.primary:disabled { opacity: .45; cursor: not-allowed; }
+
+.model-status { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; }
+.model-status .desc { flex-basis: 100%; }

@@ -173,6 +173,20 @@ function updateRunSummary() {
     : "Select repositories and operations.";
   $("#run-btn").disabled = !total;
 }
+$("#test-models").addEventListener("click", async () => {
+  const box = $("#model-status");
+  $("#test-models").disabled = true;
+  box.replaceChildren(el("span", { class: "spinner" }), "testing…");
+  try {
+    const results = await api("/api/models/test", { method: "POST" });
+    box.replaceChildren(...results.map((r) => el("span", {
+      class: `rec-badge ${r.ok ? "SAFE" : "DO_NOT_INSTALL"}`, title: r.detail,
+      text: `${r.label.split(" (")[0]}: ${r.ok ? `ok ${r.seconds}s` : (r.status || "fail")}` })),
+      ...results.filter((r) => !r.ok).map((r) => el("div", { class: "desc", text: `${r.label.split(" (")[0]}: ${r.detail}` })));
+  } catch (err) { box.textContent = err.message; }
+  $("#test-models").disabled = false;
+});
+
 $("#run-btn").addEventListener("click", async () => {
   $("#run-btn").disabled = true;
   try {

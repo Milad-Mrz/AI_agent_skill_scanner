@@ -472,6 +472,13 @@ def test_usage_and_redo(
     assert [q["skill"] for q in queued] == ["k"]
 
 
+STAGE_OUTPUT = {
+    "review": {"judge": {"findings": [], "error": None}},
+    "explain": {"explanation": {"items": [{"plain_english": "x"}]}},
+    "sandbox": {"sandbox": {"events": {"gateway_events": [{"kind": "llm_call", "status": 200}]}}},
+}
+
+
 def test_save_requires_all_checks_then_moves_repo(client: TestClient, tmp_path: Path) -> None:
     src = _library_fixture(tmp_path)
     client.post(
@@ -494,7 +501,10 @@ def test_save_requires_all_checks_then_moves_repo(client: TestClient, tmp_path: 
             operation=op,
             kind=kind,
             finished=2.0,
-            report={"verdict": {"score": 0, "recommendation": "SAFE", "issues": []}},
+            report={
+                "verdict": {"score": 0, "recommendation": "SAFE", "issues": []},
+                **STAGE_OUTPUT[kind],
+            },
         )
     (repo,) = client.get("/api/library").json()
     assert repo["ready_to_save"] is True
@@ -553,3 +563,23 @@ def test_sandbox_without_model_reply_is_not_a_pass(client: TestClient) -> None:
     webui._jobs.clear()
     webui.load_history()
     assert client.get("/api/jobs/sb1").json()["status"] == "error"
+
+
+def test_failed_stage_does_not_count_as_a_done_check(client: TestClient, tmp_path: Path) -> None:
+    src = _library_fixture(tmp_path)
+    webui._jobs["e1"] = webui.Job(
+        id="e1",
+        source=src,
+        profile="sol-medium",
+        status="done",
+        skill="green",
+        operation="explain",
+        kind="explain",
+        finished=3.0,
+        report={
+            "verdict": {"score": 21, "recommendation": "CAUTION", "issues": []},
+            "explanation": {"items": [], "error": "model call failed: 401"},
+        },
+    )
+    green = next(s for s in client.get("/api/library").json()[0]["skills"] if s["name"] == "green")
+    assert green["checks"]["explain"] is False
