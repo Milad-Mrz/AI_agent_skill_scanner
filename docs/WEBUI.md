@@ -58,6 +58,11 @@ python -m skillspector.ext.webui     # http://127.0.0.1:8765  (localhost only)
   - **Cleaned:** a repository is marked **CLEANED** when every remaining skill is green.
   - **Export kept skills:** a zip of the remaining skills plus `SKILL_REVIEW.json` (the verdicts, and the list of removed skills).
   - **Separation from scans:** deleting in the library doesn't remove scan results. Scans are managed on the Scan page.
+- **Saved Skills:** the permanent store, for fully cleaned repositories only.
+  - **When Save unlocks:** every remaining skill needs ✓ static, ✓ LLM, ✓ explain and ✓ sandbox, with no yellow or red result. The library shows that checklist on every skill, and the Save button lists what's missing.
+  - **How to get there:** fix and redo scans one by one, or delete the red and yellow skills.
+  - **What Save does:** copies the skills with `SKILL_REVIEW.json` (verdicts, methods, commit, file hashes) to `~/.local/share/skill-scanner/saved/`, and removes the repository from Scan and the Library.
+  - **On the Saved page:** download a zip, verify the files against their hashes, or delete.
 - **Combined results:** grouped by link, across all runs.
   - Each link lists its skills with the latest verdict of every method and the merged severity counts.
   - **View all results** (or a click on one skill) opens a combined view, with:

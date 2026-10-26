@@ -64,6 +64,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(webui.pins, "PIN_DIR", tmp_path / "data" / "pins")
     webui._repos.clear()
     webui._library.clear()
+    # Tasks queued by a test must never run after it ends and write to the real data dir.
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     webui._jobs.clear()
@@ -414,7 +415,15 @@ def test_library_group_delete_restore_and_cleaned(client: TestClient, tmp_path: 
     assert repo["deleted"] == 0
 
 
-def test_usage_and_redo(client: TestClient, tmp_path: Path) -> None:
+def test_usage_and_redo(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class NoRun:
+        def submit(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr(webui, "_static_pool", NoRun())
+    monkeypatch.setattr(webui, "_llm_pool", NoRun())
     webui._jobs["u1"] = webui.Job(
         id="u1",
         source="x",
@@ -460,3 +469,41 @@ def test_usage_and_redo(client: TestClient, tmp_path: Path) -> None:
     )
     queued = client.post("/api/redo-failed", params={"source": "s2"}).json()["queued"]
     assert [q["skill"] for q in queued] == ["k"]
+
+
+def test_save_requires_all_checks_then_moves_repo(client: TestClient, tmp_path: Path) -> None:
+    src = _library_fixture(tmp_path)
+    client.post(
+        "/api/library/L",
+        json={"action": "delete", "mode": "selected", "skills": ["red", "yellow", "fresh"]},
+    )
+    response = client.post("/api/library/L/save")
+    assert response.status_code == 400 and "missing" in response.json()["detail"]
+    for kind, op in (
+        ("review", "model:sol-medium"),
+        ("explain", "explain"),
+        ("sandbox", "sandbox"),
+    ):
+        webui._jobs[f"g-{kind}"] = webui.Job(
+            id=f"g-{kind}",
+            source=src,
+            profile="sol-medium",
+            status="done",
+            skill="green",
+            operation=op,
+            kind=kind,
+            finished=2.0,
+            report={"verdict": {"score": 0, "recommendation": "SAFE", "issues": []}},
+        )
+    (repo,) = client.get("/api/library").json()
+    assert repo["ready_to_save"] is True
+    saved = client.post("/api/library/L/save").json()
+    assert [s["name"] for s in saved["skills"]] == ["green"]
+    assert saved["removed"] == ["red", "yellow", "fresh"]
+    assert client.get("/api/library").json() == []  # left the library
+    assert not any(j["source"] == src for j in client.get("/api/jobs").json())  # left Scan
+    entry = client.get("/api/saved").json()[0]
+    assert entry["file_count"] == 1
+    assert client.post(f"/api/saved/{entry['id']}/verify").json()["clean"] is True
+    assert client.get(f"/api/saved/{entry['id']}/download").status_code == 200
+    assert client.delete(f"/api/saved/{entry['id']}").json()["deleted"] == entry["id"]

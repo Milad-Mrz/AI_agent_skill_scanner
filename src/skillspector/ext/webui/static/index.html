@@ -15,6 +15,7 @@
     <button class="tab" data-tab="search">Search GitHub</button>
     <button class="tab" data-tab="pins">Pins</button>
     <button class="tab" data-tab="history">Skill Library</button>
+    <button class="tab" data-tab="saved">Saved Skills</button>
     <button id="theme-toggle" class="theme-btn" type="button" title="Switch colour theme">☾ Dark</button>
   </nav>
 </header>
@@ -80,6 +81,14 @@
       <div id="history"></div>
     </div>
     <div id="history-detail"></div>
+  </section>
+
+  <section id="tab-saved" class="panel hidden">
+    <div class="card">
+      <h2 class="step">Saved Skills</h2>
+      <p class="hint">Only fully cleaned skills live here: every skill passed static rules, an LLM review, Explain and Sandbox with no yellow or red result. Saving moves a repository out of Scan and the Skill Library; this copy (with its review manifest and file hashes) is the one to install.</p>
+      <div id="saved"></div>
+    </div>
   </section>
 
   <section id="tab-pins" class="panel hidden">
