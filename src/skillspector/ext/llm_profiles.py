@@ -165,3 +165,78 @@ def profile_ready(name: str, env: Mapping[str, str]) -> tuple[bool, str | None]:
         if live is not None and PROFILES[name]["SKILLSPECTOR_MODEL"] not in live:
             return False, "a model NVIDIA still serves (this one was retired)"
     return True, None
+
+
+def probe_profile(name: str, env: Mapping[str, str], timeout: float = 45.0) -> dict:
+    """Send one tiny request with the profile's real key to see if inference works now."""
+    import time
+
+    import httpx
+
+    provider = PROFILES[name]["SKILLSPECTOR_PROVIDER"]
+    model = PROFILES[name]["SKILLSPECTOR_MODEL"]
+    key = env.get(REQUIRED_KEY.get(name) or "", "")
+    started = time.time()
+    try:
+        if provider == "anthropic":
+            response = httpx.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={"x-api-key": key, "anthropic-version": "2023-06-01"},
+                json={
+                    "model": model,
+                    "max_tokens": 5,
+                    "messages": [{"role": "user", "content": "hi"}],
+                },
+                timeout=timeout,
+            )
+        elif provider == "openai":
+            response = httpx.post(
+                (env.get("OPENAI_BASE_URL") or "https://api.openai.com/v1") + "/responses",
+                headers={"Authorization": f"Bearer {key}"},
+                json={"model": model, "input": "hi", "max_output_tokens": 16},
+                timeout=timeout,
+            )
+        elif provider == "nv_build":
+            response = httpx.post(
+                "https://integrate.api.nvidia.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {key}"},
+                json={
+                    "model": model,
+                    "max_tokens": 5,
+                    "messages": [{"role": "user", "content": "hi"}],
+                },
+                timeout=timeout,
+            )
+        else:
+            return {"profile": name, "ok": None, "detail": f"no probe for provider {provider}"}
+    except httpx.TimeoutException:
+        return {
+            "profile": name,
+            "ok": False,
+            "seconds": round(time.time() - started, 1),
+            "detail": f"no reply within {timeout:.0f} s (overloaded or queued)",
+        }
+    except httpx.HTTPError as exc:
+        return {"profile": name, "ok": False, "detail": f"connection failed: {exc}"[:200]}
+    seconds = round(time.time() - started, 1)
+    if response.status_code == 200:
+        return {"profile": name, "ok": True, "seconds": seconds, "detail": "inference works"}
+    try:
+        message = response.json()
+        message = message.get("detail") or message.get("error", {}).get("message") or str(message)
+    except ValueError:
+        message = response.text
+    hint = {
+        401: "key rejected",
+        403: "key not allowed to run inference (credits, plan or permissions)",
+        404: "model not found",
+        410: "model retired",
+        429: "rate limited or out of credit",
+    }.get(response.status_code, "request failed")
+    return {
+        "profile": name,
+        "ok": False,
+        "seconds": seconds,
+        "status": response.status_code,
+        "detail": f"{hint}: {str(message)[:160]}",
+    }

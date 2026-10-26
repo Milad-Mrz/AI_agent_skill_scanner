@@ -45,6 +45,8 @@
         <button id="run-btn" class="primary run" type="button" disabled>Run</button>
       </div>
       <p class="hint error" id="run-error"></p>
+      <div class="row"><button id="test-models" type="button" title="Send each model one tiny real request">Test models</button>
+        <span id="model-status" class="model-status"></span></div>
       <p class="hint">Model tiles run the upstream LLM stage and the whole-skill judge. Explain and Sandbox use the model chosen next to Run (by default the first selected model tile). LLM tasks run one at a time; static tasks run in parallel. You can add repositories and start more runs while others are going: they join the waiting list.</p>
     </div>
 

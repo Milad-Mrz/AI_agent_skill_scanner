@@ -849,6 +849,20 @@ def operations_catalog() -> list[dict]:
     return ops
 
 
+@app.post("/api/models/test")
+def test_models() -> list[dict]:
+    """One tiny real request per model that has a key, run in parallel."""
+    from skillspector.ext.llm_profiles import probe_profile
+
+    env = {**read_dotenv(DOTENV), **os.environ}
+    names = [n for n in PROFILES if profile_ready(n, env)[0]]
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        results = list(pool.map(lambda n: probe_profile(n, env), names))
+    for result in results:
+        result["label"] = PROFILE_LABELS.get(result["profile"], result["profile"])
+    return results
+
+
 @app.get("/api/operations")
 def operations() -> list[dict]:
     return operations_catalog()
@@ -1234,6 +1248,21 @@ def _latest_by_skill(source: str) -> dict[str, list[Job]]:
     return grouped
 
 
+def _passed_methods(found: Job) -> set[str]:
+    """Methods a finished run really completed (a stage that errored does not count)."""
+    report = found.report or {}
+    methods = set(_METHOD_KINDS.get(found.kind, set()))
+    judge = report.get("judge")
+    if "model" in methods and (not judge or (judge.get("error") and not judge.get("findings"))):
+        methods.discard("model")
+    explanation = report.get("explanation")
+    if "explain" in methods and not (explanation and explanation.get("items")):
+        methods.discard("explain")
+    if "sandbox" in methods and not _sandbox_reached_model(report):
+        methods.discard("sandbox")
+    return methods
+
+
 def library_view() -> list[dict]:
     out = []
     for repo_record in sorted(_repos.values(), key=lambda r: r.added):
@@ -1258,7 +1287,7 @@ def library_view() -> list[dict]:
                 counts[sev] = counts.get(sev, 0) + 1
             done_kinds: set[str] = set()
             for found in runs:
-                done_kinds |= _METHOD_KINDS.get(found.kind, set())
+                done_kinds |= _passed_methods(found)
             skills.append(
                 {
                     "path": skill["path"],
