@@ -8,7 +8,7 @@ This fork adds layers on top of [NVIDIA SkillSpector](https://github.com/NVIDIA/
 uv venv --python 3.12 .venv && source .venv/bin/activate
 uv pip install -e ".[dev,ui]"
 # API keys go in the gitignored .env: OPENAI_API_KEY, ANTHROPIC_API_KEY, NVIDIA_INFERENCE_KEY
-python -m skillspector.ext.webui          # http://127.0.0.1:8765
+python -m skillspector.ext.webui          # http://127.0.0.1:8765  (see README.md for the step-by-step flow)
 ```
 
 From the command line:
@@ -35,12 +35,13 @@ python eval/benchmark.py red|benign --root <SkillSecurer clone> [--profile ...]
 | Clean rewrite | New SKILL.md from the approved plain-English instructions only, re-checked | `ext/rewrite.py` |
 | Sandbox | A real agent runs the skill in Docker, with no internet, canary secrets, strace and a host gateway | `ext/sandbox/`, docs/SANDBOX.md |
 | Pin / verify | Commit plus per-file SHA-256; detects changes after review | `ext/pin.py` |
+| Web UI | Batch scans with live stages and a queue; API usage; Skill Library (keep/delete, CLEANED, export); Saved Skills | `ext/webui/`, docs/WEBUI.md |
 
 ## Models (`ext/llm_profiles.py`)
 - Claude Sonnet 5.5
 - GPT-6.1 Sol (medium effort)
 - Open-weight models hosted on NVIDIA Build: DeepSeek V4 Flash, GLM-5.3 and gpt-oss-120b
-- Local open-weight models through Ollama: Qwen2.5-Coder 7B and 14B
+- Local Ollama models are supported for custom profiles, but none are bundled: in testing, the small local models were too weak
 
 ## Results
 See `docs/COVERAGE_AUDIT.md` (28 probes) and `docs/BENCHMARK.md` (SkillSecurer datasets).
