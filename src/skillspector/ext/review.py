@@ -117,6 +117,11 @@ def combined_verdict(
         if data and data.get("anomaly"):
             floor = max(floor, 21)
             reasons.append(f"{stage} anomaly: {data['anomaly']}")
+        # A stage that could not run is not a pass: the skill was not fully checked.
+        failed = data and data.get("error") and not (data.get("findings") or data.get("items"))
+        if failed:
+            floor = max(floor, 21)
+            reasons.append(f"{stage} did not run: {str(data['error'])[:160]}")
     if judge_output and len(judge_output.get("ungrounded") or []) > max(2, len(judge_findings)):
         floor = max(floor, 21)
         reasons.append("bundle judge returned mostly unquotable findings")

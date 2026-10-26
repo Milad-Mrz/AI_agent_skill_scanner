@@ -15,9 +15,9 @@ from pathlib import Path
 DEFAULT_PRICES: dict[str, tuple[float, float]] = {
     "gpt-6.1-sol": (2.00, 10.00),
     "claude-sonnet-5-5": (2.00, 10.00),
-    "deepseek-ai/deepseek-v4-flash-0731": (0.0, 0.0),
+    "deepseek-ai/deepseek-v4.1-flash": (0.0, 0.0),
     "z-ai/glm-5.3": (0.0, 0.0),
-    "openai/gpt-oss-120b": (0.0, 0.0),
+    "moonshotai/kimi-k2.6": (0.0, 0.0),
 }
 
 PRICING_FILE = (

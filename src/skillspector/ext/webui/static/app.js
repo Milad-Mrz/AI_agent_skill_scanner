@@ -109,6 +109,18 @@ function renderRepoTiles() {
     }
     box.append(tile);
   }
+  renderHelperModels();
+}
+function renderHelperModels() {
+  const select = $("#helper-model");
+  const previous = select.value;
+  select.replaceChildren(el("option", { value: "", text: "first selected model tile" }),
+    ...ops.filter((o) => o.kind === "review").map((o) => {
+      const opt = el("option", { value: o.profile, text: o.ready ? o.label : `${o.label} (needs ${o.missing})` });
+      if (!o.ready) opt.disabled = true;
+      return opt;
+    }));
+  select.value = previous;
 }
 $("#repo-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -165,7 +177,8 @@ $("#run-btn").addEventListener("click", async () => {
   $("#run-btn").disabled = true;
   try {
     await api("/api/batch", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ repos: [...selectedRepos], operations: [...selectedOps], strict: $("#strict").checked }) });
+      body: JSON.stringify({ repos: [...selectedRepos], operations: [...selectedOps], strict: $("#strict").checked,
+        helper_profile: $("#helper-model").value || null }) });
     $("#run-error").textContent = "";
     loadJobs();
   } catch (err) { $("#run-error").textContent = err.message; }
@@ -269,7 +282,8 @@ function sourceBlock(source, tasks, queued) {
     if (!selectedOps.size) { b.textContent = "select operations above"; return; }
     try {
       await api("/api/batch", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repos: [repo.id], operations: [...selectedOps], strict: $("#strict").checked }) });
+        body: JSON.stringify({ repos: [repo.id], operations: [...selectedOps], strict: $("#strict").checked,
+          helper_profile: $("#helper-model").value || null }) });
     } catch (err) { b.textContent = err.message.slice(0, 60); }
   });
   if (failed) button("Redo failed", "", "Queue failed or stopped tasks again", async () => {

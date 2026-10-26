@@ -535,3 +535,21 @@ def test_one_passing_llm_review_is_enough(client: TestClient, tmp_path: Path) ->
     add("box", "sandbox", "sandbox", "CAUTION")  # but static/explain/sandbox must each pass
     green = next(s for s in client.get("/api/library").json()[0]["skills"] if s["name"] == "green")
     assert green["recommendation"] == "CAUTION"
+
+
+def test_sandbox_without_model_reply_is_not_a_pass(client: TestClient) -> None:
+    report = {
+        "verdict": {"score": 0, "recommendation": "SAFE", "issues": []},
+        "sandbox": {
+            "findings": [],
+            "events": {"gateway_events": [{"kind": "llm_call", "status": 410, "error": "Gone"}]},
+        },
+    }
+    webui._save(
+        webui.Job(
+            id="sb1", source="x", profile="nv-glm", status="done", kind="sandbox", report=report
+        )
+    )
+    webui._jobs.clear()
+    webui.load_history()
+    assert client.get("/api/jobs/sb1").json()["status"] == "error"

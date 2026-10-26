@@ -28,24 +28,24 @@ PROFILES: dict[str, dict[str, str]] = {
     # Open-weight models hosted on NVIDIA Build (free key at build.nvidia.com).
     "nv-deepseek": {
         "SKILLSPECTOR_PROVIDER": "nv_build",
-        "SKILLSPECTOR_MODEL": "deepseek-ai/deepseek-v4-flash-0731",
+        "SKILLSPECTOR_MODEL": "deepseek-ai/deepseek-v4.1-flash",
     },
     "nv-glm": {
         "SKILLSPECTOR_PROVIDER": "nv_build",
         "SKILLSPECTOR_MODEL": "z-ai/glm-5.3",
     },
-    "nv-gpt-oss": {
+    "nv-kimi": {
         "SKILLSPECTOR_PROVIDER": "nv_build",
-        "SKILLSPECTOR_MODEL": "openai/gpt-oss-120b",
+        "SKILLSPECTOR_MODEL": "moonshotai/kimi-k2.6",
     },
 }
 
 PROFILE_LABELS: dict[str, str] = {
     "sonnet": "Claude Sonnet 5.5",
     "sol-medium": "GPT-6.1 Sol (medium effort)",
-    "nv-deepseek": "DeepSeek V4 Flash (open, NVIDIA Build)",
+    "nv-deepseek": "DeepSeek V4.1 Flash (open, NVIDIA Build)",
     "nv-glm": "GLM-5.3 (open, NVIDIA Build)",
-    "nv-gpt-oss": "gpt-oss-120b (open, NVIDIA Build)",
+    "nv-kimi": "Kimi K2.6 (open, NVIDIA Build)",
 }
 
 # The API key each profile needs, so callers can fail early with a clear message.
@@ -55,7 +55,7 @@ REQUIRED_KEY: dict[str, str | None] = {
     "sol-medium": "OPENAI_API_KEY",
     "nv-deepseek": "NVIDIA_INFERENCE_KEY",
     "nv-glm": "NVIDIA_INFERENCE_KEY",
-    "nv-gpt-oss": "NVIDIA_INFERENCE_KEY",
+    "nv-kimi": "NVIDIA_INFERENCE_KEY",
 }
 
 # Controls a profile must not inherit from the caller's environment, because the
@@ -123,6 +123,33 @@ def ollama_models(base_url: str | None = None, timeout: float = 2.0) -> set[str]
     return {item.get("name", "") for item in response.json().get("models", [])}
 
 
+_NV_MODELS: tuple[float, set[str] | None] = (0.0, None)
+
+
+def nvidia_models(key: str, max_age: float = 600.0) -> set[str] | None:
+    """Model ids NVIDIA Build serves right now (cached); None when the list is unavailable."""
+    import time
+
+    import httpx
+
+    global _NV_MODELS
+    fetched_at, models = _NV_MODELS
+    if models is not None and time.time() - fetched_at < max_age:
+        return models
+    try:
+        response = httpx.get(
+            "https://integrate.api.nvidia.com/v1/models",
+            headers={"Authorization": f"Bearer {key}"},
+            timeout=10,
+        )
+        response.raise_for_status()
+        models = {m["id"] for m in response.json().get("data", [])}
+    except (httpx.HTTPError, ValueError, KeyError):
+        return None
+    _NV_MODELS = (time.time(), models)
+    return models
+
+
 def profile_ready(name: str, env: Mapping[str, str]) -> tuple[bool, str | None]:
     """Whether a profile can run now, and what is missing if not."""
     if PROFILES[name]["SKILLSPECTOR_PROVIDER"] == "ollama":
@@ -133,4 +160,8 @@ def profile_ready(name: str, env: Mapping[str, str]) -> tuple[bool, str | None]:
     key_name = REQUIRED_KEY.get(name)
     if key_name and not env.get(key_name):
         return False, key_name
+    if PROFILES[name]["SKILLSPECTOR_PROVIDER"] == "nv_build" and key_name:
+        live = nvidia_models(env[key_name])
+        if live is not None and PROFILES[name]["SKILLSPECTOR_MODEL"] not in live:
+            return False, "a model NVIDIA still serves (this one was retired)"
     return True, None
