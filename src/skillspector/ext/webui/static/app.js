@@ -174,10 +174,20 @@ function updateRunSummary() {
   $("#run-btn").disabled = !total;
 }
 // ---- API keys (live check) ----
-const KEY_STATUS = {
-  ok: ["SAFE", "works"], partial: ["SAFE", "works · some models unavailable"],
-  failed: ["DO_NOT_INSTALL", "key rejected"], no_reply: ["CAUTION", "no model replied"], missing: ["", "not set"],
-};
+const KEY_PROVIDER = { OPENAI_API_KEY: "OpenAI", ANTHROPIC_API_KEY: "Anthropic", NVIDIA_INFERENCE_KEY: "NVIDIA" };
+// A key counts as working when at least one of its models answers; only those models are listed.
+function keyRow(k) {
+  const working = k.models.filter((m) => m.ok);
+  const [cls, text] = !k.present ? ["", "not set"] : working.length ? ["SAFE", "working"] : ["DO_NOT_INSTALL", "not working"];
+  const shown = working.length ? working : k.models;
+  const models = shown.map((m) => el("span", { class: `rec-badge ${m.ok ? "SAFE" : "DO_NOT_INSTALL"}`, title: m.detail,
+    text: `${m.label.split(" (")[0]}: ${m.ok ? `ok · ${m.seconds}s` : m.detail.split(":")[0]}` }));
+  if (!k.present) models.push(el("span", { class: "desc", text: `add ${k.var} to .env (used by ${k.used_by.join(", ")})` }));
+  return el("div", { class: "key-row" },
+    el("strong", { class: "key-var", text: KEY_PROVIDER[k.var] || k.var, title: k.var }),
+    el("span", { class: `rec-badge ${cls}`, text }),
+    el("span", { class: "key-models" }, ...models));
+}
 async function loadKeys(force = false) {
   const box = $("#keys");
   $("#keys-retest").disabled = true;
@@ -185,16 +195,7 @@ async function loadKeys(force = false) {
   if (force || !box.children.length) box.replaceChildren(el("span", { class: "spinner" }), "testing keys…");
   try {
     const data = await api(`/api/keys${force ? "?force=true" : ""}`);
-    box.replaceChildren(...data.keys.map((k) => {
-      const [cls, text] = KEY_STATUS[k.status] || ["", k.status];
-      return el("div", { class: "key-row" },
-        el("code", { class: "key-var", text: k.var }),
-        el("span", { class: `rec-badge ${cls}`, text }),
-        el("span", { class: "key-models" }, ...(k.models.length ? k.models.map((m) =>
-          el("span", { class: `rec-badge ${m.ok ? "SAFE" : [401, 403].includes(m.status) ? "DO_NOT_INSTALL" : "CAUTION"}`, title: m.detail,
-            text: `${m.label.split(" (")[0]}: ${m.ok ? `ok · ${m.seconds}s` : m.detail.split(":")[0]}` }))
-          : [el("span", { class: "desc", text: k.present ? "" : `used by ${k.used_by.join(", ")}: add it to .env` })])));
-    }));
+    box.replaceChildren(...data.keys.map(keyRow));
     $("#keys-time").textContent = data.tested_at ? `tested ${new Date(data.tested_at * 1000).toLocaleTimeString()}` : "";
     await loadOperations(); // tiles of failing keys become unavailable
     updateRunSummary();

@@ -304,7 +304,7 @@ details.library.cleaned > summary { box-shadow: inset 4px 0 0 var(--low); }
 
 /* ---- API keys ---- */
 .keys-card { padding-bottom: 10px; }
-.key-row { display: grid; grid-template-columns: 200px 140px auto 1fr; gap: 8px 12px; align-items: center;
+.key-row { display: grid; grid-template-columns: 110px 110px 1fr; gap: 8px 12px; align-items: center;
   padding: 6px 0; border-top: 1px solid var(--border); font-size: 13px; }
 .key-var { font-weight: 700; }
 .key-models { display: flex; flex-wrap: wrap; gap: 4px; }
