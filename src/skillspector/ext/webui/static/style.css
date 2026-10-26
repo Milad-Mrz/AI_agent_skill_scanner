@@ -288,3 +288,12 @@ details.library.cleaned > summary { box-shadow: inset 4px 0 0 var(--low); }
 
 .model-status { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; }
 .model-status .desc { flex-basis: 100%; }
+
+/* ---- API keys ---- */
+.keys-card { padding-bottom: 10px; }
+.key-row { display: grid; grid-template-columns: 200px 140px auto 1fr; gap: 8px 12px; align-items: center;
+  padding: 6px 0; border-top: 1px solid var(--border); font-size: 13px; }
+.key-var { font-weight: 700; }
+.key-models { display: flex; flex-wrap: wrap; gap: 4px; }
+.key-models .rec-badge { font-weight: 600; font-size: 11px; }
+@media (max-width: 760px) { .key-row { grid-template-columns: 1fr auto; } .key-models { grid-column: 1 / -1; } }
