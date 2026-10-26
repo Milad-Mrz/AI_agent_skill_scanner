@@ -495,8 +495,10 @@ async def scan_upload(
 
 @app.get("/api/jobs")
 def jobs() -> list[dict]:
+    """Every task, except those of skills removed in the Skill Library."""
     with _lock:
-        return [job.summary() for job in sorted(_jobs.values(), key=lambda j: -j.started)]
+        ordered = sorted(_jobs.values(), key=lambda j: -j.started)
+        return [job.summary() for job in ordered if not _is_removed(job)]
 
 
 @app.get("/api/jobs/{job_id}")
@@ -758,8 +760,16 @@ def add_repos(request: RepoRequest) -> list[dict]:
 
 @app.get("/api/repos")
 def list_repos() -> list[dict]:
+    """Repositories with the skills removed in the Skill Library left out."""
     with _lock:
-        return [r.to_dict() for r in sorted(_repos.values(), key=lambda r: r.added)]
+        out = []
+        for record in sorted(_repos.values(), key=lambda r: r.added):
+            data = record.to_dict()
+            removed = _removed_names(record.id)
+            data["skills"] = [s for s in record.skills if s["name"] not in removed]
+            data["removed"] = len(record.skills) - len(data["skills"])
+            out.append(data)
+        return out
 
 
 @app.post("/api/repos/{repo_id}/refresh")
@@ -872,12 +882,6 @@ def _fingerprint(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()[:12]
 
 
-def _mask(value: str) -> str:
-    if not value:
-        return ""
-    return f"{value[:6]}…{value[-4:]}" if len(value) > 12 else "…" * 3
-
-
 def _probe_all(force: bool = False) -> list[dict]:
     """One tiny real request per keyed profile, cached; re-run when stale or forced."""
     from skillspector.ext.llm_profiles import REQUIRED_KEY, probe_profile
@@ -930,7 +934,7 @@ def test_models() -> list[dict]:
 
 @app.get("/api/keys")
 def api_keys(force: bool = False) -> dict:
-    """Every API key in the environment (masked) with the live status of the models using it."""
+    """Every API key in the environment (never its value) with the live status of the models using it."""
     from skillspector.ext.llm_profiles import REQUIRED_KEY
 
     env = _env()
@@ -944,14 +948,15 @@ def api_keys(force: bool = False) -> dict:
         elif models and all(m["ok"] for m in models):
             status = "ok"
         elif any(m["ok"] for m in models):
-            status = "partial"
-        else:
+            status = "partial"  # key accepted; some models are slow, retired or not on the plan
+        elif any(m.get("status") in {401, 403} for m in models):
             status = "failed"
+        else:
+            status = "no_reply"
         keys.append(
             {
                 "var": var,
                 "present": bool(env.get(var)),
-                "masked": _mask(env.get(var, "")),
                 "status": status,
                 "used_by": [PROFILE_LABELS.get(n, n).split(" (")[0] for n in users],
                 "models": models,
@@ -1003,7 +1008,12 @@ def run_batch(request: BatchRequest) -> dict:
         if not repo_record or repo_record.status != "ready":
             continue
         wanted = (request.skills or {}).get(repo_id)
-        skills = [s for s in repo_record.skills if not wanted or s["path"] in wanted]
+        removed = _removed_names(repo_id)
+        skills = [
+            s
+            for s in repo_record.skills
+            if (not wanted or s["path"] in wanted) and s["name"] not in removed
+        ]
         for op in chosen:
             if op["kind"] == "pin":
                 job = Job(
@@ -1271,7 +1281,7 @@ def redo_failed(source: str) -> dict:
     """Queue again every skill/operation of a link whose latest task failed or was stopped."""
     latest: dict[tuple[str, str], Job] = {}
     for found in sorted(_jobs.values(), key=lambda j: j.started):
-        if found.source == source:
+        if found.source == source and not _is_removed(found):
             latest[(_skill_of(found), found.operation)] = found
     redo = [j for j in latest.values() if j.status in {"error", "cancelled", "interrupted"}]
     return {"queued": [_enqueue(_clone_job(j)).summary() for j in redo]}
@@ -1317,6 +1327,22 @@ _METHOD_KINDS = {
     "explain": {"explain"},
     "sandbox": {"sandbox"},
 }  # repo_id -> {skill path: "deleted" | "kept"}
+
+
+def _removed_names(repo_id: str | None) -> set[str]:
+    """Names of the repository's skills marked deleted in the Skill Library."""
+    record = _repos.get(repo_id or "")
+    states = _library.get(repo_id or "", {})
+    if not record or not states:
+        return set()
+    return {s["name"] for s in record.skills if states.get(s["path"]) == "deleted"}
+
+
+def _is_removed(job: Job) -> bool:
+    if job.kind == "pin" or not _library:
+        return False
+    repo_id = job.repo_id or next((r.id for r in _repos.values() if r.source == job.source), None)
+    return job.skill in _removed_names(repo_id)
 
 
 def _library_path() -> Path:
@@ -1460,6 +1486,11 @@ def library_action(repo_id: str, request: LibraryAction) -> dict:
         else:
             states[path] = "deleted" if request.action == "delete" else "kept"
     _save_library()
+    if request.action == "delete":
+        source = _repos[repo_id].source
+        for found in [j for j in list(_jobs.values()) if j.source == source and _is_removed(j)]:
+            if found.status in {"queued", "running"}:
+                cancel_job(found.id)
     return {"changed": len(chosen), "repo": next(r for r in library_view() if r["id"] == repo_id)}
 
 

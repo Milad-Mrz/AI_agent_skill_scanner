@@ -416,6 +416,22 @@ def test_library_group_delete_restore_and_cleaned(client: TestClient, tmp_path: 
     assert repo["deleted"] == 0
 
 
+def test_library_delete_removes_skill_from_scan(client: TestClient, tmp_path: Path) -> None:
+    src = _library_fixture(tmp_path)
+    webui._jobs["q-red"] = webui.Job(
+        id="q-red", source=src, profile="static", status="queued", skill="red", repo_id="L"
+    )
+    client.post("/api/library/L", json={"action": "delete", "mode": "selected", "skills": ["red"]})
+    (repo,) = [r for r in client.get("/api/repos").json() if r["id"] == "L"]
+    assert [s["name"] for s in repo["skills"]] == ["yellow", "green", "fresh"]
+    assert repo["removed"] == 1
+    shown = {j["id"] for j in client.get("/api/jobs").json()}
+    assert "j-red" not in shown and "q-red" not in shown and "j-green" in shown
+    assert webui._jobs["q-red"].status == "cancelled"
+    client.post("/api/library/L", json={"action": "restore", "mode": "all"})
+    assert "j-red" in {j["id"] for j in client.get("/api/jobs").json()}
+
+
 def test_usage_and_redo(
     client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -585,7 +601,7 @@ def test_failed_stage_does_not_count_as_a_done_check(client: TestClient, tmp_pat
     assert green["checks"]["explain"] is False
 
 
-def test_api_keys_panel_masks_keys_and_blocks_failing_models(
+def test_api_keys_panel_hides_keys_and_blocks_failing_models(
     client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from skillspector.ext import llm_profiles
@@ -614,8 +630,7 @@ def test_api_keys_panel_masks_keys_and_blocks_failing_models(
     data = client.get("/api/keys").json()
     keys = {k["var"]: k for k in data["keys"]}
     assert keys["OPENAI_API_KEY"]["status"] == "failed"
-    assert keys["OPENAI_API_KEY"]["masked"] == "sk-old…abcd"
-    assert "1234567890" not in str(data)  # never the full key
+    assert "sk-old" not in str(data) and "abcd" not in str(data)  # no part of a key
     assert keys["ANTHROPIC_API_KEY"]["status"] == "ok"
     assert keys["NVIDIA_INFERENCE_KEY"]["status"] == "missing"
     ops = {o["id"]: o for o in client.get("/api/operations").json()}

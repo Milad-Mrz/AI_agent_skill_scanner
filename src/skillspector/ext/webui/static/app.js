@@ -175,8 +175,8 @@ function updateRunSummary() {
 }
 // ---- API keys (live check) ----
 const KEY_STATUS = {
-  ok: ["SAFE", "works"], partial: ["CAUTION", "some models fail"], failed: ["DO_NOT_INSTALL", "not working"],
-  missing: ["", "not set"],
+  ok: ["SAFE", "works"], partial: ["SAFE", "works · some models unavailable"],
+  failed: ["DO_NOT_INSTALL", "key rejected"], no_reply: ["CAUTION", "no model replied"], missing: ["", "not set"],
 };
 async function loadKeys(force = false) {
   const box = $("#keys");
@@ -188,10 +188,9 @@ async function loadKeys(force = false) {
       const [cls, text] = KEY_STATUS[k.status] || ["", k.status];
       return el("div", { class: "key-row" },
         el("code", { class: "key-var", text: k.var }),
-        el("code", { class: "desc", text: k.present ? k.masked : "—" }),
         el("span", { class: `rec-badge ${cls}`, text }),
         el("span", { class: "key-models" }, ...(k.models.length ? k.models.map((m) =>
-          el("span", { class: `rec-badge ${m.ok ? "SAFE" : "DO_NOT_INSTALL"}`, title: m.detail,
+          el("span", { class: `rec-badge ${m.ok ? "SAFE" : [401, 403].includes(m.status) ? "DO_NOT_INSTALL" : "CAUTION"}`, title: m.detail,
             text: `${m.label.split(" (")[0]}: ${m.ok ? `ok · ${m.seconds}s` : m.detail.split(":")[0]}` }))
           : [el("span", { class: "desc", text: k.present ? "" : `used by ${k.used_by.join(", ")}: add it to .env` })])));
     }));
